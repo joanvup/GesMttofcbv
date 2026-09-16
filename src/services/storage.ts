@@ -587,6 +587,18 @@ const getAuthHeaders = () => {
 
 const apiCall = async (url: string, method: string = 'GET', body?: any) => {
   const res = await fetch(url, { method, headers: getAuthHeaders(), body: body ? JSON.stringify(body) : undefined });
+  if (!res.ok) {
+    if (res.status === 413) {
+      throw new Error('El tamaño de la carga excede el límite permitido por el servidor web (413 Payload Too Large). Verifique client_max_body_size en Nginx.');
+    }
+    const text = await res.text();
+    try {
+      const errJson = JSON.parse(text);
+      throw new Error(errJson.error || `Error del servidor (${res.status})`);
+    } catch {
+      throw new Error(`Error de comunicación con el servidor (HTTP ${res.status})`);
+    }
+  }
   const data = await res.json();
   if (!data.success) throw new Error(data.error || 'API Error');
   return data.data !== undefined ? data.data : data;

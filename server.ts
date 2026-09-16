@@ -13,8 +13,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'fcbv-secret-key-2026';
 
-app.use(express.json({ limit: '20mb' }));
-app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
 const META_FILE = path.join(UPLOADS_DIR, 'logo-meta.json');
