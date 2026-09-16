@@ -10,7 +10,7 @@ import { eq } from 'drizzle-orm';
 import { INITIAL_EQUIPMENTS, INITIAL_LOCATIONS, INITIAL_BUILDINGS, INITIAL_EXECUTIONS_SEED } from './src/seeds/initialData';
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'fcbv-secret-key-2026';
 
 app.use(express.json({ limit: '20mb' }));
