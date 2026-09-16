@@ -1,0 +1,6 @@
+{
+  "name": "Mantenimiento Preventivo FCBV",
+  "description": "Sistema de gestión de mantenimiento preventivo de equipos críticos y cronogramas para FCBV",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
