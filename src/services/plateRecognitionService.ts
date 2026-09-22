@@ -55,7 +55,37 @@ export async function rotateImageBlob(
 }
 
 /**
- * Genera una versión con contraste mejorado y escala de grises para facilitar OCR y lectura de códigos de barras.
+ * Aplica un filtro de enfoque por convolución (Unsharp Masking 3x3) sobre el canvas
+ * para realzar bordes tipográficos en etiquetas con fuentes pequeñas o desenfoque leve.
+ */
+function applySharpenFilter(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+  try {
+    const imgData = ctx.getImageData(0, 0, width, height);
+    const data = imgData.data;
+    const buff = new Uint8ClampedArray(data);
+    // Kernel 3x3: centro 5, cruz -1
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const idx = (y * width + x) * 4;
+        for (let c = 0; c < 3; c++) {
+          const val =
+            buff[idx + c] * 5 -
+            buff[((y - 1) * width + x) * 4 + c] -
+            buff[((y + 1) * width + x) * 4 + c] -
+            buff[(y * width + (x - 1)) * 4 + c] -
+            buff[(y * width + (x + 1)) * 4 + c];
+          data[idx + c] = Math.min(255, Math.max(0, val));
+        }
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+  } catch {
+    // Si canvas tiene restricciones de origen, continuar sin alterar
+  }
+}
+
+/**
+ * Genera una versión con contraste mejorado, escala de grises y enfoque para facilitar OCR de Tesseract.js.
  */
 export async function enhanceImageForScanning(
   imageSource: File | Blob | string
@@ -85,9 +115,12 @@ export async function enhanceImageForScanning(
         return;
       }
 
-      // Grayscale + High contrast + slight brightness boost
-      ctx.filter = 'contrast(170%) grayscale(100%) brightness(108%)';
+      // Escala de grises + alto contraste + realce leve de brillo
+      ctx.filter = 'contrast(180%) grayscale(100%) brightness(106%)';
       ctx.drawImage(img, 0, 0, width, height);
+
+      // Aplicar filtro de nitidez convolucional
+      applySharpenFilter(ctx, width, height);
 
       const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
       canvas.toBlob(
@@ -111,9 +144,8 @@ export async function enhanceImageForScanning(
 }
 
 /**
- * Genera una versión con colores invertidos (negativo) y alto contraste.
- * Es crucial para etiquetas con texto blanco o metálico sobre fondo negro/oscuro
- * (muy frecuente en Cisco, Beelink, Dell, HP, switches y routers).
+ * Genera una versión con colores invertidos (negativo) y alto contraste con enfoque.
+ * Crucial para etiquetas con texto blanco o metálico sobre fondo negro/oscuro (Beelink, Cisco, Dell, HP).
  */
 export async function createInvertedContrastImage(
   imageSource: File | Blob | string
@@ -143,8 +175,11 @@ export async function createInvertedContrastImage(
         return;
       }
 
-      ctx.filter = 'invert(100%) contrast(180%) grayscale(100%) brightness(105%)';
+      ctx.filter = 'invert(100%) contrast(190%) grayscale(100%) brightness(105%)';
       ctx.drawImage(img, 0, 0, width, height);
+
+      // Aplicar filtro de nitidez convolucional
+      applySharpenFilter(ctx, width, height);
 
       const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
       canvas.toBlob(
@@ -199,20 +234,125 @@ export function normalizeOcrText(raw: string): string {
 }
 
 /**
- * Normaliza y extrae campos técnicos de cómputo, red e infraestructura a partir de texto OCR o transcripción.
+ * Limpia estrictamente un valor extraído tras una etiqueta ('Modelo:', 'Marca:', 'Serial:').
+ * Elimina signos de puntuación espurios, caracteres de inicio/fin, etiquetas adyacentes y palabras de ruido,
+ * retornando únicamente los valores alfanuméricos válidos.
  */
-export function extractTechnicalFieldsFromText(rawText: string): PlateOcrResult {
-  const originalText = rawText || '';
-  const text = normalizeOcrText(originalText);
-  let detectedBrand = '';
-  let detectedModel = '';
-  let detectedSerial = '';
-  let detectedMac = '';
-  let detectedCode = '';
-  let deviceType = '';
-  const specs: string[] = [];
+export function cleanAlphanumericValue(
+  rawVal: string,
+  options: {
+    allowHyphens?: boolean;
+    allowDots?: boolean;
+    allowSlashes?: boolean;
+    allowSpaces?: boolean;
+    maxWords?: number;
+    preserveCase?: boolean;
+    minLen?: number;
+  } = {}
+): string {
+  if (!rawVal) return '';
 
-  // 1. Detección de Marca conocida (fabricantes comunes en infraestructura educativa y tecnológica)
+  const {
+    allowHyphens = true,
+    allowDots = false,
+    allowSlashes = false,
+    allowSpaces = false,
+    maxWords = 1,
+    preserveCase = true,
+    minLen = 2,
+  } = options;
+
+  let text = rawVal.trim();
+
+  // 1. Quitar caracteres iniciales residuales (: ; = - _ ~ | · • # / \ [ ] )
+  text = text.replace(/^[:;=\-_~|·•#/\\[\](){}\s]+/, '').trim();
+
+  // 2. Cortar si en la misma línea aparece otra etiqueta o término de corte
+  const stopDelimiterPattern = /\b(?:input|output|rating|voltage|power|mac|lan|wifi|fcc|ce|rohs|made\s*in|date|fecha|p\/n|pn|batch|lote|service|support|designed|assembled|sn|s\/n|serial|model|modelo|brand|marca|item|product|part)\b.*$/i;
+  text = text.replace(stopDelimiterPattern, '').trim();
+
+  // 3. Cortar por salto de línea
+  text = text.split(/[\r\n]+/)[0].trim();
+
+  // Palabras comunes de relleno en placas que NO corresponden a un código válido
+  const noiseWordRegex = /^(made|in|china|taiwan|mexico|usa|vietnam|input|output|rating|voltage|power|hz|volt|amp|ce|rohs|fcc|weee|ukca|nom|ul|eac|model|modelo|brand|marca|serial|serie|number|numero|code|item|part|sn|sn:|s\/n|mac|date|type|tipo)$/i;
+
+  if (allowSpaces && maxWords > 1) {
+    const rawWords = text.split(/\s+/).filter(Boolean);
+    const validWords: string[] = [];
+
+    for (const w of rawWords.slice(0, maxWords)) {
+      // Limpiar bordes no alfanuméricos
+      let clean = w.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, '');
+      if (allowHyphens) {
+        clean = clean.replace(/[^a-zA-Z0-9\-_]/g, '');
+      } else {
+        clean = clean.replace(/[^a-zA-Z0-9]/g, '');
+      }
+
+      if (clean && !noiseWordRegex.test(clean)) {
+        validWords.push(clean);
+      }
+    }
+
+    if (validWords.length > 0) {
+      return validWords.join(' ');
+    }
+  }
+
+  // Extracción de token alfanumérico unitario
+  let charRegex: RegExp;
+  if (allowHyphens && allowDots && allowSlashes) {
+    charRegex = /[A-Za-z0-9\-._/]+/g;
+  } else if (allowHyphens && allowDots) {
+    charRegex = /[A-Za-z0-9\-._]+/g;
+  } else if (allowHyphens && allowSlashes) {
+    charRegex = /[A-Za-z0-9\-_/]+/g;
+  } else if (allowHyphens) {
+    charRegex = /[A-Za-z0-9\-_]+/g;
+  } else {
+    charRegex = /[A-Za-z0-9]+/g;
+  }
+
+  const matches = text.match(charRegex);
+  if (!matches || matches.length === 0) return '';
+
+  for (const m of matches) {
+    const cleaned = m.replace(/^[\-_./]+|[\-_./]+$/g, '');
+    if (cleaned.length >= minLen && !noiseWordRegex.test(cleaned)) {
+      return preserveCase ? cleaned : cleaned.toUpperCase();
+    }
+  }
+
+  return matches[0].replace(/^[\-_./]+|[\-_./]+$/g, '');
+}
+
+/**
+ * Extrae y limpia específicamente el campo 'Marca:' a partir del texto OCR.
+ */
+export function extractBrandFromLabelText(text: string, rawText: string): string {
+  // 1. Patrones directos de etiqueta "Marca:" / "Brand:"
+  const directPatterns = [
+    /(?:^|\s|\b)(?:marca|brand|fabricante|make|mfg|manufacturer)\s*[:=;\-.]+\s*([A-Za-z0-9\-_\s]{2,40})/i,
+    /(?:^|\s|\b)(?:marca|brand|fabricante)\s+([A-Za-z0-9\-]{2,25})/i,
+  ];
+
+  for (const p of directPatterns) {
+    const match = text.match(p);
+    if (match) {
+      const clean = cleanAlphanumericValue(match[1], {
+        allowHyphens: true,
+        allowSpaces: true,
+        maxWords: 2,
+        minLen: 2,
+      });
+      if (clean && clean.length >= 2) {
+        return clean;
+      }
+    }
+  }
+
+  // 2. Búsqueda en catálogo de marcas conocidas
   const brands = [
     { name: 'Beelink', regex: /\b(beelink|ser\d*|ser\s*pro|sei\d*|mini\s*s\d*|eq\d+|u59|gk55|t4\s*pro)\b/i },
     { name: 'Minisforum', regex: /\b(minisforum|nab\d+|um\d+|em\d+|venus|neptune|npb\d+)\b/i },
@@ -278,223 +418,227 @@ export function extractTechnicalFieldsFromText(rawText: string): PlateOcrResult 
   ];
 
   for (const b of brands) {
-    if (b.regex.test(text) || b.regex.test(originalText)) {
-      detectedBrand = b.name;
-      break;
+    if (b.regex.test(text) || b.regex.test(rawText)) {
+      return b.name;
     }
   }
 
-  // Si no se encontró en la lista, buscar en las primeras 3 líneas (cabecera típica de placa de fabricante)
-  if (!detectedBrand) {
-    const lines = originalText.split('\n').map((l) => l.trim()).filter((l) => l.length > 2);
-    for (let i = 0; i < Math.min(3, lines.length); i++) {
-      for (const b of brands) {
-        if (b.regex.test(lines[i])) {
-          detectedBrand = b.name;
-          break;
-        }
+  // 3. Buscar en las 3 primeras líneas de la placa
+  const lines = rawText.split('\n').map((l) => l.trim()).filter((l) => l.length > 2);
+  for (let i = 0; i < Math.min(3, lines.length); i++) {
+    for (const b of brands) {
+      if (b.regex.test(lines[i])) {
+        return b.name;
       }
-      if (detectedBrand) break;
     }
   }
 
-  // Si aún no se encontró, buscar etiquetas explícitas "Brand:", "Marca:", "Fabricante:"
-  if (!detectedBrand) {
-    const brandMatch = text.match(
-      /(?:brand|marca|fabricante|manufacturer|mfg|made\s*by)[:\s=]*([A-Za-z0-9\-_\s]{2,20})(?:\r|\n|$)/i
-    );
-    if (brandMatch) {
-      detectedBrand = brandMatch[1].trim();
+  return '';
+}
+
+/**
+ * Extrae y limpia específicamente el campo 'Modelo:' a partir del texto OCR.
+ */
+export function extractModelFromLabelText(text: string, rawText: string): string {
+  // 1. Patrones directos de etiqueta "Modelo:" / "Model:" / "M/N:" / "Mod:" / "Model No:"
+  const directPatterns = [
+    /(?:^|\s|\b)(?:modelo|model|m\/n|model\s*no\.?|modelo\s*no\.?|model#|modelo#|mod\.?|item\s*no\.?|product\s*no\.?|p\/n\s*model|regulatory\s*model|rmn)\s*[:=;\-.]+\s*([A-Za-z0-9\-._/\s]{2,60})/i,
+    /(?:^|\s|\b)(?:modelo|model|m\/n)\s+([A-Za-z0-9\-._/]{2,40})/i,
+  ];
+
+  for (const p of directPatterns) {
+    const match = text.match(p);
+    if (match) {
+      const clean = cleanAlphanumericValue(match[1], {
+        allowHyphens: true,
+        allowDots: true,
+        allowSlashes: true,
+        allowSpaces: true,
+        maxWords: 3,
+        minLen: 2,
+      });
+
+      if (clean && clean.length >= 2) {
+        // Si el modelo capturado es solo "SER" pero en el texto está SER5 o SER5 Pro
+        if (/^SER$/i.test(clean)) {
+          if (/SER5\s*PRO/i.test(rawText) || /SER5\s*PRO/i.test(text)) return 'SER5 Pro';
+          if (/SER5/i.test(rawText) || /SER5/i.test(text)) return 'SER5';
+        }
+        return clean;
+      }
     }
   }
 
-  // 2. Detección de Modelo
-  // Ejemplos: "Model: SER5", "Model: DIR-600", "M/N: WS-C2960X-24TD-L", "Model No: U6-Pro", "MOD: ..."
-  const modelMatch = text.match(
-    /(?:model(?:o)?|m\/n|model\s*no\.?|mod\.?|item\s*no\.?|product\s*no\.?|regulatory\s*model|rmn|p\/n\s*model|series|type|tipo)[:\s=]+([A-Za-z0-9\-._/]+(?:\s+[A-Za-z0-9\-._/]+)?)/i
-  );
-  if (modelMatch) {
-    let candidate = modelMatch[1].trim();
-    candidate = candidate.replace(/\b(made|china|taiwan|input|output|rohs|ce|fcc|can|rating|sn|s\/n)\b.*/i, '').trim();
-    if (candidate.length >= 2) {
-      detectedModel = candidate;
-    }
-  }
-
-  // Refinamiento de submodelo o patrones específicos comunes
-  // Soporta SER, SER5, SER5 Pro, SER6, SER7, etc.
+  // 2. Detección de subfamilias conocidas sin etiqueta directa
   const serMatch = text.match(/\b(SER\s*\d*(?:\s*(?:PRO|MAX|PLUS))?(?:-[A-Za-z0-9\-_/]+)?)\b/i);
   if (serMatch) {
-    const rawSer = serMatch[1].toUpperCase().trim();
-    if (/SER5\s*PRO/i.test(originalText) || /SER5\s*PRO/i.test(text)) {
-      detectedModel = 'SER5 Pro';
-    } else if (rawSer === 'SER' && (/SER\s*5/i.test(originalText) || /SER5/i.test(originalText))) {
-      detectedModel = 'SER5 Pro';
-    } else if (rawSer.length > 0) {
-      detectedModel = rawSer;
-    }
-    if (!detectedBrand) detectedBrand = 'Beelink';
-    if (!deviceType) deviceType = 'Mini PC / Computador Compacto';
-  } else if (/^SER$/i.test(detectedModel) || /^SER\s*5/i.test(detectedModel)) {
-    if (/SER5\s*PRO/i.test(originalText) || /SER5\s*PRO/i.test(text)) {
-      detectedModel = 'SER5 Pro';
-    }
-    if (!detectedBrand) detectedBrand = 'Beelink';
-    if (!deviceType) deviceType = 'Mini PC / Computador Compacto';
-  } else {
-    // Mini PCs y NUCs
-    const miniPcMatch = text.match(/\b(EQ\d+|SEi\d+|Mini\s*S\d*|GK\d+|U59|NAB\d+|UM\d+|EM\d+|NPB\d+|NUC\d+[A-Za-z0-9\-]*)\b/i);
-    if (miniPcMatch) {
-      detectedModel = miniPcMatch[1].toUpperCase();
-      if (!detectedBrand) {
-        if (/NUC/i.test(detectedModel)) detectedBrand = 'Intel';
-        else if (/NAB|UM|EM|NPB/i.test(detectedModel)) detectedBrand = 'Minisforum';
-        else detectedBrand = 'Beelink';
-      }
-    }
-
-    // Cisco
-    const wsMatch = text.match(/\b(WS-C\d+[A-Za-z0-9\-]+|C9\d{3}[A-Za-z0-9\-]*|SG\d{3}-[A-Za-z0-9\-]+|CBS\d{3}-[A-Za-z0-9\-]+|ISR\d{4}|AIR-[A-Za-z0-9\-]+)\b/i);
-    if (wsMatch) {
-      detectedModel = wsMatch[1].toUpperCase();
-      if (!detectedBrand) detectedBrand = 'Cisco';
-    }
-
-    // D-Link
-    const dirMatch = text.match(/\b(DIR-\d+[A-Za-z0-9]*|DES-\d+[A-Za-z0-9]*|DGS-\d+[A-Za-z0-9]*|DAP-\d+[A-Za-z0-9]*|DWR-\d+[A-Za-z0-9]*)\b/i);
-    if (dirMatch) {
-      detectedModel = dirMatch[1].toUpperCase();
-      if (!detectedBrand) detectedBrand = 'D-Link';
-    }
-
-    // TP-Link
-    const tplinkMatch = text.match(/\b(Archer\s+[A-Za-z0-9]+|TL-[A-Za-z0-9\-]+|Deco\s+[A-Za-z0-9]+|EAP\d+[A-Za-z0-9\-]*|Omada\s+[A-Za-z0-9]+)\b/i);
-    if (tplinkMatch) {
-      detectedModel = tplinkMatch[1];
-      if (!detectedBrand) detectedBrand = 'TP-Link';
-    }
-
-    // Ubiquiti
-    const u6Match = text.match(/\b(U6-(?:Pro|Lite|LR|Mesh|Enterprise|Plus)|UAP-[A-Za-z0-9\-]+|USW-[A-Za-z0-9\-]+|ER-[A-Za-z0-9\-]+|UDM-[A-Za-z0-9\-]+|NanoStation\s*[A-Za-z0-9\-]+|Rocket\s*[A-Za-z0-9\-]+)\b/i);
-    if (u6Match) {
-      detectedModel = u6Match[1];
-      if (!detectedBrand) detectedBrand = 'Ubiquiti';
-    }
-
-    // Dell
-    const optiMatch = text.match(/\b(OptiPlex\s*\d+[A-Za-z0-9]*|PowerEdge\s*[A-Za-z0-9]+|Latitude\s*\d+[A-Za-z0-9]*|Precision\s*\d+[A-Za-z0-9]*|Wyse\s*\d+[A-Za-z0-9]*)\b/i);
-    if (optiMatch) {
-      detectedModel = optiMatch[1];
-      if (!detectedBrand) detectedBrand = 'Dell';
-    }
-
-    // HP
-    const hpMatch = text.match(/\b(ProDesk\s*\d+[A-Za-z0-9]*|EliteDesk\s*\d+[A-Za-z0-9]*|ProLiant\s*[A-Za-z0-9\-]+|LaserJet\s*[A-Za-z0-9\-]+|ZBook\s*[A-Za-z0-9\-]+|ProBook\s*[A-Za-z0-9\-]+)\b/i);
-    if (hpMatch) {
-      detectedModel = hpMatch[1];
-      if (!detectedBrand) detectedBrand = 'HP';
-    }
-
-    // Lenovo
-    const lenovoMatch = text.match(/\b(ThinkCentre\s*[A-Za-z0-9\-]+|ThinkSystem\s*[A-Za-z0-9\-]+|ThinkPad\s*[A-Za-z0-9\-]+|IdeaCentre\s*[A-Za-z0-9\-]+)\b/i);
-    if (lenovoMatch) {
-      detectedModel = lenovoMatch[1];
-      if (!detectedBrand) detectedBrand = 'Lenovo';
-    }
-
-    // APC
-    const smartUpsMatch = text.match(/\b(Smart-?UPS\s*[A-Za-z0-9\-]+|Back-?UPS\s*[A-Za-z0-9\-]+|SURT\d+[A-Za-z0-9\-]*|SMT\d+[A-Za-z0-9\-]*)\b/i);
-    if (smartUpsMatch) {
-      detectedModel = smartUpsMatch[1];
-      if (!detectedBrand) detectedBrand = 'APC';
-    }
+    if (/SER5\s*PRO/i.test(rawText) || /SER5\s*PRO/i.test(text)) return 'SER5 Pro';
+    return cleanAlphanumericValue(serMatch[1], { allowHyphens: true, allowSpaces: true, maxWords: 2 });
   }
 
-  // 3. Detección de Serial (S/N)
-  // Ejemplos: "SN: D58003JH70063", "S/N: PV6B196005576", "Serial No: FCW2145A0BC", "Service Tag: 8FG3T92", "(S) 23S10..."
-  const serialMatch = text.match(
-    /(?:s[\/.]?n|serial(?:\s*no\.?|\s*number|\s*#)?|sn|serie|service\s*tag|st|n\/s|sec\s*s\/n|serial\s*num)[:\s=]+([A-Za-z0-9\-]+)/i
-  );
-
-  const noiseWords = /^(made|china|taiwan|input|output|voltage|rating|equipment|ethernet|model|switch|router|access|cisco|dell|lenovo|intel|service)$/i;
-
-  if (serialMatch) {
-    let cand = serialMatch[1].trim();
-    cand = cand.replace(/^[;:\-.]+/, '').replace(/[;:\-.]+$/, '');
-    if (!noiseWords.test(cand) && cand.length >= 4) {
-      detectedSerial = cand;
-    }
+  // Mini PCs / NUCs
+  const miniPcMatch = text.match(/\b(EQ\d+|SEi\d+|Mini\s*S\d*|GK\d+|U59|NAB\d+|UM\d+|EM\d+|NPB\d+|NUC\d+[A-Za-z0-9\-]*)\b/i);
+  if (miniPcMatch) {
+    return cleanAlphanumericValue(miniPcMatch[1], { allowHyphens: true });
   }
 
-  // Detección Dell Service Tag (exactamente 7 caracteres alfanuméricos)
-  if (!detectedSerial) {
-    const dellStMatch = text.match(/(?:service\s*tag|st)[:\s=]*([A-Z0-9]{7})\b/i);
-    if (dellStMatch) {
-      detectedSerial = dellStMatch[1].toUpperCase();
-      if (!detectedBrand) detectedBrand = 'Dell';
-    }
+  // Cisco Catalyst / Switches / Routers
+  const wsMatch = text.match(/\b(WS-C\d+[A-Za-z0-9\-]+|C9\d{3}[A-Za-z0-9\-]*|SG\d{3}-[A-Za-z0-9\-]+|CBS\d{3}-[A-Za-z0-9\-]+|ISR\d{4}|AIR-[A-Za-z0-9\-]+)\b/i);
+  if (wsMatch) {
+    return cleanAlphanumericValue(wsMatch[1], { allowHyphens: true });
   }
 
-  // Detección Cisco Serial Number (11 caracteres que inician con 3 letras de planta: FCW, FOC, FDO, JMX, SAL, etc.)
-  if (!detectedSerial) {
-    const ciscoSnMatch = text.match(/\b((?:FCW|FOC|FDO|JMX|SAL|QAK|FXS|FDZ|CAT|REF|DCA)[A-Z0-9]{8})\b/i);
-    if (ciscoSnMatch) {
-      detectedSerial = ciscoSnMatch[1].toUpperCase();
-      if (!detectedBrand) detectedBrand = 'Cisco';
-    }
+  // D-Link
+  const dirMatch = text.match(/\b(DIR-\d+[A-Za-z0-9]*|DES-\d+[A-Za-z0-9]*|DGS-\d+[A-Za-z0-9]*|DAP-\d+[A-Za-z0-9]*|DWR-\d+[A-Za-z0-9]*)\b/i);
+  if (dirMatch) {
+    return cleanAlphanumericValue(dirMatch[1], { allowHyphens: true });
   }
 
-  // Detección etiqueta Lenovo / IBM con prefijo (S) o (1S)
-  if (!detectedSerial) {
-    const lenovoBarcodeTag = text.match(/(?:\(S\)|\[S\]|\(1S\)|1S)\s*([A-Za-z0-9\-]{8,24})/i);
-    if (lenovoBarcodeTag) {
-      detectedSerial = lenovoBarcodeTag[1].trim();
-    }
+  // TP-Link
+  const tplinkMatch = text.match(/\b(Archer\s+[A-Za-z0-9]+|TL-[A-Za-z0-9\-]+|Deco\s+[A-Za-z0-9]+|EAP\d+[A-Za-z0-9\-]*|Omada\s+[A-Za-z0-9]+)\b/i);
+  if (tplinkMatch) {
+    return cleanAlphanumericValue(tplinkMatch[1], { allowHyphens: true, allowSpaces: true, maxWords: 2 });
   }
 
-  // Fallback de serial si no tiene prefijo explícito: buscar token alfanumérico largo con números y letras
-  if (!detectedSerial) {
-    const candidateTokens = text.match(/\b([A-Z0-9]{10,20})\b/g);
-    if (candidateTokens) {
-      for (const token of candidateTokens) {
-        if (
-          !noiseWords.test(token) &&
-          !token.includes('MADEIN') &&
-          !token.includes('CHINA') &&
-          !token.includes('COLOMBIA') &&
-          !token.includes('PRODUCT') &&
-          !token.includes('ETHERNET') &&
-          !token.includes('SPECIFICATION') &&
-          /\d/.test(token) &&
-          /[A-Za-z]/.test(token)
-        ) {
-          detectedSerial = token;
-          break;
-        }
+  // Ubiquiti
+  const u6Match = text.match(/\b(U6-(?:Pro|Lite|LR|Mesh|Enterprise|Plus)|UAP-[A-Za-z0-9\-]+|USW-[A-Za-z0-9\-]+|ER-[A-Za-z0-9\-]+|UDM-[A-Za-z0-9\-]+|NanoStation\s*[A-Za-z0-9\-]+|Rocket\s*[A-Za-z0-9\-]+)\b/i);
+  if (u6Match) {
+    return cleanAlphanumericValue(u6Match[1], { allowHyphens: true });
+  }
+
+  // Dell
+  const optiMatch = text.match(/\b(OptiPlex\s*\d+[A-Za-z0-9]*|PowerEdge\s*[A-Za-z0-9]+|Latitude\s*\d+[A-Za-z0-9]*|Precision\s*\d+[A-Za-z0-9]*|Wyse\s*\d+[A-Za-z0-9]*)\b/i);
+  if (optiMatch) {
+    return cleanAlphanumericValue(optiMatch[1], { allowHyphens: true, allowSpaces: true, maxWords: 2 });
+  }
+
+  // HP
+  const hpMatch = text.match(/\b(ProDesk\s*\d+[A-Za-z0-9]*|EliteDesk\s*\d+[A-Za-z0-9]*|ProLiant\s*[A-Za-z0-9\-]+|LaserJet\s*[A-Za-z0-9\-]+|ZBook\s*[A-Za-z0-9\-]+|ProBook\s*[A-Za-z0-9\-]+)\b/i);
+  if (hpMatch) {
+    return cleanAlphanumericValue(hpMatch[1], { allowHyphens: true, allowSpaces: true, maxWords: 2 });
+  }
+
+  // Lenovo
+  const lenovoMatch = text.match(/\b(ThinkCentre\s*[A-Za-z0-9\-]+|ThinkSystem\s*[A-Za-z0-9\-]+|ThinkPad\s*[A-Za-z0-9\-]+|IdeaCentre\s*[A-Za-z0-9\-]+)\b/i);
+  if (lenovoMatch) {
+    return cleanAlphanumericValue(lenovoMatch[1], { allowHyphens: true, allowSpaces: true, maxWords: 2 });
+  }
+
+  // APC
+  const smartUpsMatch = text.match(/\b(Smart-?UPS\s*[A-Za-z0-9\-]+|Back-?UPS\s*[A-Za-z0-9\-]+|SURT\d+[A-Za-z0-9\-]*|SMT\d+[A-Za-z0-9\-]*)\b/i);
+  if (smartUpsMatch) {
+    return cleanAlphanumericValue(smartUpsMatch[1], { allowHyphens: true, allowSpaces: true, maxWords: 2 });
+  }
+
+  return '';
+}
+
+/**
+ * Extrae y limpia específicamente el campo 'Serial:' / 'S/N:' a partir del texto OCR.
+ * Extrae estrictamente la secuencia alfanumérica sin espacios ni ruido.
+ */
+export function extractSerialFromLabelText(text: string, rawText: string): string {
+  // 1. Patrones directos de etiqueta "Serial:" / "S/N:" / "SN:" / "Serie:" / "No. Serie:"
+  const directPatterns = [
+    /(?:^|\s|\b)(?:serial(?:\s*no\.?|\s*number|\s*#)?|s[\/.]?n|sn|serie|no\.?\s*serie|n\/s|service\s*tag|st|serial\s*num)\s*[:=;\-.]+\s*([A-Za-z0-9\-._/]{4,45})/i,
+    /(?:^|\s|\b)(?:serial|s[\/.]?n|sn|serie)\s+([A-Za-z0-9\-]{5,35})/i,
+  ];
+
+  for (const p of directPatterns) {
+    const match = text.match(p);
+    if (match) {
+      const clean = cleanAlphanumericValue(match[1], {
+        allowHyphens: true,
+        allowDots: false,
+        allowSlashes: false,
+        allowSpaces: false,
+        maxWords: 1,
+        minLen: 4,
+      });
+
+      if (clean && clean.length >= 4) {
+        return clean.toUpperCase();
       }
     }
   }
 
-  // 4. Detección de Código de Activo Fijo / Placa Institucional si está en el texto
+  // 2. Detección Dell Service Tag (7 caracteres alfanuméricos)
+  const dellStMatch = text.match(/(?:service\s*tag|st)[:\s=]*([A-Z0-9]{7})\b/i);
+  if (dellStMatch) {
+    return dellStMatch[1].toUpperCase();
+  }
+
+  // 3. Detección Cisco Serial Number (11 caracteres alfanuméricos con prefijo de planta)
+  const ciscoSnMatch = text.match(/\b((?:FCW|FOC|FDO|JMX|SAL|QAK|FXS|FDZ|CAT|REF|DCA)[A-Z0-9]{8})\b/i);
+  if (ciscoSnMatch) {
+    return ciscoSnMatch[1].toUpperCase();
+  }
+
+  // 4. Detección etiqueta Lenovo / IBM con prefijo (S) o (1S)
+  const lenovoBarcodeTag = text.match(/(?:\(S\)|\[S\]|\(1S\)|1S)\s*([A-Za-z0-9\-]{8,24})/i);
+  if (lenovoBarcodeTag) {
+    const clean = cleanAlphanumericValue(lenovoBarcodeTag[1], { allowHyphens: true });
+    if (clean) return clean.toUpperCase();
+  }
+
+  // 5. Fallback heurístico: buscar token alfanumérico largo (10-22 caracteres con letras y dígitos)
+  const candidateTokens = text.match(/\b([A-Z0-9]{10,22})\b/g);
+  if (candidateTokens) {
+    for (const token of candidateTokens) {
+      if (
+        !token.includes('MADEIN') &&
+        !token.includes('CHINA') &&
+        !token.includes('PRODUCT') &&
+        !token.includes('ETHERNET') &&
+        !token.includes('SPECIFICATION') &&
+        /\d/.test(token) &&
+        /[A-Za-z]/.test(token)
+      ) {
+        return token;
+      }
+    }
+  }
+
+  return '';
+}
+
+/**
+ * Normaliza y extrae campos técnicos de cómputo, red e infraestructura a partir de texto OCR o transcripción.
+ */
+export function extractTechnicalFieldsFromText(rawText: string): PlateOcrResult {
+  const originalText = rawText || '';
+  const text = normalizeOcrText(originalText);
+
+  // Extracciones específicas con limpieza estricta de valores alfanuméricos
+  let detectedBrand = extractBrandFromLabelText(text, originalText);
+  let detectedModel = extractModelFromLabelText(text, originalText);
+  let detectedSerial = extractSerialFromLabelText(text, originalText);
+  let detectedMac = '';
+  let detectedCode = '';
+  let deviceType = '';
+  const specs: string[] = [];
+
+  // Detección de Código de Activo Fijo / Placa Institucional si está en el texto
   const assetCodeMatch = text.match(/(?:activo(?:\s*fijo)?|c[oó]digo|placa|id\s*equipo)[:\s]*([A-Za-z0-9\-]+)/i);
   if (assetCodeMatch) {
-    detectedCode = assetCodeMatch[1].trim();
+    detectedCode = cleanAlphanumericValue(assetCodeMatch[1], { allowHyphens: true });
   }
 
-  // 5. Detección de MAC Address
+  // Detección de MAC Address
   const macMatch = text.match(/(?:mac(?:\s*id|\s*address)?|lan\s*mac)[:\s]*([0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}|[0-9A-Fa-f]{12})/i);
   if (macMatch) {
     detectedMac = macMatch[1].trim();
     specs.push(`MAC: ${detectedMac}`);
   }
 
-  // 6. Detección de Part Number (P/N) o Especificación de Configuración
+  // Detección de Part Number (P/N)
   const pnMatch = text.match(/(?:p\/n|part(?:\s*no|\s*number)?|pn)[:\s]*([A-Za-z0-9\-._/]+)/i);
   if (pnMatch) {
-    specs.push(`P/N: ${pnMatch[1].trim()}`);
+    const cleanPn = cleanAlphanumericValue(pnMatch[1], { allowHyphens: true, allowDots: true, allowSlashes: true });
+    if (cleanPn) specs.push(`P/N: ${cleanPn}`);
   }
-  
-  // Buscar también códigos de configuración completa tipo: SER5 PRO-E-16500EJ0W64PRO-DP/XB
+
+  // Código de configuración completa (ej: SER5 PRO-E-16500EJ0W64PRO-DP/XB)
   const partFullMatch = originalText.match(/\b(SER\d+\s*PRO-[A-Za-z0-9\-/_]+)\b/i) || text.match(/\b(SER\d+\s*PRO-[A-Za-z0-9\-/_]+)\b/i);
   if (partFullMatch) {
     specs.push(`P/N Config: ${partFullMatch[1].trim()}`);
@@ -505,70 +649,68 @@ export function extractTechnicalFieldsFromText(rawText: string): PlateOcrResult 
     if (!deviceType) deviceType = 'Mini PC / Computador Compacto';
   }
 
-  // 7. Detección de Especificaciones Eléctricas (Input / Entrada / Rating)
-  // Soporta 19V=3.42A, 19V===3.42A, 19V 3.42A, 100-240V ~ 50/60Hz
+  // Especificaciones Eléctricas (Input / Entrada / Rating)
   const inputMatch = text.match(/(?:input|entrada|rating|alimentaci[oó]n|power)[:\s]*([0-9\.\-]+\s*(?:V|VAC|VDC|V~)?\s*(?:(?:={1,3}|[~⎓\/\-]|x|\b(?:AC|DC)\b)\s*)?[0-9\.\-]+\s*(?:A|mA|W|VA|Hz|V)?(?:\s*,?\s*[0-9\.\-]+\s*Hz)?(?:\s*,?\s*[0-9\.\-]+\s*W)?)/i);
   if (inputMatch) {
     specs.push(`Alimentación: ${inputMatch[1].trim()}`);
   }
 
-  // 8. Detección de Versiones de Hardware / Firmware / Lote / SKU
+  // Versiones de Hardware / Firmware / Lote / SKU
   const hwMatch = text.match(/(?:h\/w\s*ver\.?|hw\s*ver\.?)[:\s]*([A-Za-z0-9\-_.]+)/i);
   if (hwMatch) {
-    specs.push(`H/W: ${hwMatch[1].trim()}`);
+    const cleanHw = cleanAlphanumericValue(hwMatch[1], { allowHyphens: true, allowDots: true });
+    if (cleanHw) specs.push(`H/W: ${cleanHw}`);
   }
   const fwMatch = text.match(/(?:f\/w\s*ver\.?|fw\s*ver\.?)[:\s]*([A-Za-z0-9\-_.]+)/i);
   if (fwMatch) {
-    specs.push(`F/W: ${fwMatch[1].trim()}`);
+    const cleanFw = cleanAlphanumericValue(fwMatch[1], { allowHyphens: true, allowDots: true });
+    if (cleanFw) specs.push(`F/W: ${cleanFw}`);
   }
-  // Batch/Lote tipo: 99.222890208F0
   const batchMatch = originalText.match(/\b(\d{2}\.\d{8,14}[A-Za-z0-9]+)\b/) || text.match(/\b(\d{2}\.\d{8,14}[A-Za-z0-9]+)\b/);
   if (batchMatch) {
     specs.push(`Lote/Rev: ${batchMatch[1].trim()}`);
   }
 
-  // 9. Detección de FCC ID o Certificación
-  const fccMatch = text.match(/(?:fcc\s*id)[:\s]*([A-Za-z0-9\-]+)/i);
-  if (fccMatch) {
-    specs.push(`FCC ID: ${fccMatch[1].trim()}`);
-  }
-
-  // 10. Detección de Tipo de Equipo
+  // Tipo de Equipo según Marca y Modelo detectados
   const lowerText = text.toLowerCase();
+  const lowerBrand = (detectedBrand || '').toLowerCase();
+  const lowerModel = (detectedModel || '').toLowerCase();
+
   if (
-    /\b(ser\d*|mini\s*pc|nuc\d*|beelink|minisforum|eq\d+|sei\d+)\b/i.test(text) ||
-    lowerText.includes('mini pc') ||
-    lowerText.includes('beelink') ||
-    lowerText.includes('minisforum')
+    lowerModel.includes('ser') ||
+    lowerModel.includes('mini pc') ||
+    lowerBrand.includes('beelink') ||
+    lowerBrand.includes('minisforum') ||
+    lowerModel.includes('nuc')
   ) {
     deviceType = 'Mini PC / Computador Compacto';
   } else if (
-    lowerText.includes('pc') ||
-    lowerText.includes('computador') ||
-    lowerText.includes('optiplex') ||
-    lowerText.includes('thinkcentre') ||
-    lowerText.includes('prodesk')
+    lowerBrand.includes('dell') && (lowerModel.includes('optiplex') || lowerModel.includes('precision') || lowerModel.includes('latitude')) ||
+    lowerBrand.includes('hp') && (lowerModel.includes('prodesk') || lowerModel.includes('elitedesk')) ||
+    lowerBrand.includes('lenovo') && (lowerModel.includes('thinkcentre') || lowerModel.includes('thinkpad'))
   ) {
     deviceType = 'Computador de Escritorio';
-  } else if (lowerText.includes('router') || lowerText.includes('dir-') || lowerText.includes('broadband')) {
+  } else if (lowerModel.includes('dir-') || lowerBrand.includes('mikrotik') || lowerText.includes('router') || lowerText.includes('broadband')) {
     deviceType = 'Router Inalámbrico / Enrutador de Red';
-  } else if (lowerText.includes('switch') || lowerText.includes('conmutador') || lowerText.includes('catalyst')) {
+  } else if (lowerModel.includes('catalyst') || lowerModel.includes('ws-c') || lowerModel.includes('des-') || lowerModel.includes('dgs-') || lowerText.includes('switch')) {
     deviceType = 'Switch de Red Administrable';
-  } else if (lowerText.includes('access point') || lowerText.includes('unifi') || lowerText.includes('wifi') || lowerText.includes('u6-')) {
+  } else if (lowerModel.includes('u6-') || lowerModel.includes('unifi') || lowerText.includes('access point') || lowerText.includes('ap')) {
     deviceType = 'Punto de Acceso Wi-Fi';
-  } else if (lowerText.includes('ups') || lowerText.includes('smart-ups') || lowerText.includes('batería')) {
+  } else if (lowerBrand.includes('apc') || lowerBrand.includes('tripp lite') || lowerBrand.includes('forza') || lowerText.includes('ups')) {
     deviceType = 'Sistema de Respaldo UPS';
-  } else if (lowerText.includes('server') || lowerText.includes('servidor') || lowerText.includes('poweredge')) {
+  } else if (lowerModel.includes('poweredge') || lowerModel.includes('proliant') || lowerText.includes('server')) {
     deviceType = 'Servidor Central de Datos';
-  } else if (lowerText.includes('cctv') || lowerText.includes('nvr') || lowerText.includes('dvr') || lowerText.includes('camera')) {
+  } else if (lowerText.includes('nvr') || lowerText.includes('dvr') || lowerBrand.includes('hikvision') || lowerBrand.includes('dahua')) {
     deviceType = 'Grabador NVR / Cámara CCTV';
-  } else if (lowerText.includes('printer') || lowerText.includes('impresora') || lowerText.includes('multifuncional')) {
+  } else if (lowerBrand.includes('epson') || lowerBrand.includes('canon') || lowerBrand.includes('kyocera') || lowerBrand.includes('brother') || lowerText.includes('printer')) {
     deviceType = 'Impresora / Multifuncional';
-  } else if (lowerText.includes('proyector') || lowerText.includes('projector')) {
+  } else if (lowerBrand.includes('benq') || lowerBrand.includes('viewsonic') || lowerBrand.includes('optoma') || lowerText.includes('projector')) {
     deviceType = 'Video Proyector Multimedia';
+  } else {
+    deviceType = 'Equipo Tecnológico / Infraestructura';
   }
 
-  // Código sugerido si no hay
+  // Código sugerido si no hay código de activo explícito
   if (!detectedCode && detectedSerial) {
     detectedCode = detectedSerial;
   }
@@ -772,37 +914,46 @@ export async function scanWithGeminiAi(
 }
 
 /**
- * Realiza OCR en el navegador usando Tesseract.js.
+ * Realiza OCR en el navegador usando Tesseract.js con soporte multi-idioma (Español + Inglés)
+ * para capturar correctamente patrones técnicos como 'Modelo:', 'Marca:', 'Serial:', 'S/N:'.
  */
 export async function runClientOcr(
-  imageSource: File | string,
-  onProgress?: (progress: number, status: string) => void
+  imageSource: File | Blob | string,
+  onProgress?: (progress: number, status: string) => void,
+  lang = 'spa+eng'
 ): Promise<string> {
   try {
-    const result = await Tesseract.recognize(imageSource, 'eng', {
+    const result = await Tesseract.recognize(imageSource, lang, {
       logger: (m) => {
         if (m.status === 'recognizing text' && onProgress) {
-          onProgress(Math.round((m.progress || 0) * 100), 'Reconociendo texto de la placa...');
+          const pct = Math.round((m.progress || 0) * 100);
+          onProgress(pct, `Reconociendo texto con Tesseract (${pct}%)...`);
         }
       },
     });
     return result.data.text || '';
   } catch (err) {
-    console.warn('OCR en cliente con Tesseract no disponible o bloqueado:', err);
-    return '';
+    console.warn('[Tesseract OCR] Reintento con modelo estándar en inglés:', err);
+    try {
+      const fallbackResult = await Tesseract.recognize(imageSource, 'eng');
+      return fallbackResult.data.text || '';
+    } catch (e2) {
+      console.warn('[Tesseract OCR] Falló reconocimiento cliente:', e2);
+      return '';
+    }
   }
 }
 
 /**
  * Orquestador completo de reconocimiento OCR de placas y etiquetas traseras:
- * 1. Decodificación de códigos de barra multi-ángulo (Html5Qrcode).
- * 2. Reconocimiento multimodal con IA Gemini Vision (detecta Marca, Modelo, S/N, Alimentación).
- * 3. Fallback a OCR adaptativo cliente (Tesseract.js con filtros de contraste dual e invertido).
+ * Puede operar en modo 'local_ocr' (100% privado en navegador, sin enviar datos a la nube)
+ * o en modo 'ai_hybrid' (asistido con IA Gemini Vision si está disponible).
  */
 export async function processPlateRecognition(
   file: File,
   base64: string,
-  onStatusUpdate?: (status: string) => void
+  onStatusUpdate?: (status: string) => void,
+  engineMode: 'local_ocr' | 'ai_hybrid' = 'local_ocr'
 ): Promise<{
   plateInfo: PlateOcrResult;
   source: 'barcode' | 'ocr' | 'hybrid' | 'gemini_vision';
@@ -831,33 +982,35 @@ export async function processPlateRecognition(
     // Continuar al siguiente paso si no hay código de barras
   }
 
-  // Paso 2: Análisis inteligente con Gemini Vision (IA de alta precisión)
-  if (onStatusUpdate) onStatusUpdate('Analizando etiqueta con IA Vision de alta precisión...');
-  try {
-    const aiResult = await scanWithGeminiAi(base64);
-    if (aiResult && (aiResult.detectedBrand || aiResult.detectedModel || aiResult.detectedSerial)) {
-      if (barcode) {
-        aiResult.detectedSerial = barcode;
-        if (!aiResult.detectedCode) aiResult.detectedCode = barcode;
+  // Paso 2: Si el usuario seleccionó modo IA Híbrido, intentar primero Gemini Vision
+  if (engineMode === 'ai_hybrid') {
+    if (onStatusUpdate) onStatusUpdate('Analizando etiqueta con IA Vision...');
+    try {
+      const aiResult = await scanWithGeminiAi(base64);
+      if (aiResult && (aiResult.detectedBrand || aiResult.detectedModel || aiResult.detectedSerial)) {
+        if (barcode) {
+          aiResult.detectedSerial = barcode;
+          if (!aiResult.detectedCode) aiResult.detectedCode = barcode;
+        }
+        if (!aiResult.detectedCode && aiResult.detectedSerial) {
+          aiResult.detectedCode = aiResult.detectedSerial;
+        }
+        return {
+          plateInfo: aiResult,
+          source: barcode ? 'hybrid' : 'gemini_vision',
+          barcodeDetected: barcode,
+          detectedAngle,
+          correctedDataUrl,
+        };
       }
-      if (!aiResult.detectedCode && aiResult.detectedSerial) {
-        aiResult.detectedCode = aiResult.detectedSerial;
-      }
-      return {
-        plateInfo: aiResult,
-        source: barcode ? 'hybrid' : 'gemini_vision',
-        barcodeDetected: barcode,
-        detectedAngle,
-        correctedDataUrl,
-      };
+    } catch {
+      // Si falla o no está disponible la IA, continuar inmediatamente con Tesseract.js local
     }
-  } catch {
-    // Continuar con motor OCR local
   }
 
-  // Paso 3: Análisis de texto impreso con motor OCR Tesseract (Fallback local)
-  // Primero optimizamos contraste y nitidez
-  if (onStatusUpdate) onStatusUpdate('Optimizando contraste de la etiqueta para OCR...');
+  // Paso 3: Motor OCR Local Tesseract.js (Privado y en dispositivo)
+  // Generar versión con contraste mejorado y filtro de enfoque
+  if (onStatusUpdate) onStatusUpdate('Optimizando contraste y nitidez para OCR local...');
   try {
     const enhanced = await enhanceImageForScanning(effectiveFile);
     effectiveFile = enhanced.file;
@@ -866,7 +1019,7 @@ export async function processPlateRecognition(
     // Continuar con original si falla canvas
   }
 
-  if (onStatusUpdate) onStatusUpdate('Iniciando lectura OCR de texto en etiqueta trasera...');
+  if (onStatusUpdate) onStatusUpdate('Iniciando lectura OCR local con Tesseract.js...');
   try {
     ocrText = await runClientOcr(effectiveFile, (progress, status) => {
       if (onStatusUpdate) onStatusUpdate(`${status} (${progress}%)`);
@@ -875,14 +1028,14 @@ export async function processPlateRecognition(
     // Evaluar campos encontrados en la primera pasada
     let currentParsed = extractTechnicalFieldsFromText(ocrText);
 
-    // Si falta marca, modelo o serial, o el texto es muy corto:
-    // Probar pasada con contraste invertido (negativo: letras blancas sobre fondo oscuro, común en Cisco, Beelink, Dell, HP)
+    // Si falta marca, modelo o serial, o el texto extraído es corto:
+    // Probar pasada con filtro inverso (negativo: letras blancas o plateadas sobre chasis negro/gris oscuro)
     if (!currentParsed.detectedBrand || !currentParsed.detectedModel || !currentParsed.detectedSerial || ocrText.trim().length < 30) {
       if (onStatusUpdate) onStatusUpdate('Aplicando filtro inverso para etiquetas de fondo oscuro...');
       try {
         const inverted = await createInvertedContrastImage(file);
         const invertedText = await runClientOcr(inverted.file);
-        if (invertedText.trim().length > 15) {
+        if (invertedText.trim().length > 10) {
           ocrText = `${ocrText}\n${invertedText}`;
           currentParsed = extractTechnicalFieldsFromText(ocrText);
         }
@@ -891,14 +1044,14 @@ export async function processPlateRecognition(
       }
     }
 
-    // Si aún faltan campos críticos y no se ha rotado, probar rotación a 90°
+    // Si aún faltan campos críticos y la foto original no se rotó, probar orientación a 90°
     if ((!currentParsed.detectedModel || !currentParsed.detectedSerial) && detectedAngle === 0) {
-      if (onStatusUpdate) onStatusUpdate('Probando orientación vertical (90°) para OCR...');
+      if (onStatusUpdate) onStatusUpdate('Probando orientación vertical (90°) para OCR local...');
       try {
         const rot90 = await rotateImageBlob(file, 90);
         const { file: enhRot } = await enhanceImageForScanning(rot90.file);
         const rotText = await runClientOcr(enhRot);
-        if (rotText.trim().length > 15) {
+        if (rotText.trim().length > 10) {
           ocrText = `${ocrText}\n${rotText}`;
         }
       } catch {
@@ -906,10 +1059,10 @@ export async function processPlateRecognition(
       }
     }
   } catch (err) {
-    console.warn('Error en OCR local:', err);
+    console.warn('Error en OCR local Tesseract:', err);
   }
 
-  // Paso 3: Unificar texto de OCR y código de barras decodificado
+  // Paso 4: Unificar texto de OCR y código de barras decodificado
   const combinedRawText = [
     ocrText,
     barcode ? `SN: ${barcode}\nBARCODE: ${barcode}\nSERIAL: ${barcode}` : '',
@@ -917,16 +1070,16 @@ export async function processPlateRecognition(
     .filter(Boolean)
     .join('\n');
 
-  // Paso 4: Extraer campos estructurados (Marca, Modelo, Serial, Especificaciones Técnicas)
+  // Paso 5: Extraer campos técnicos con limpieza estricta de valores alfanuméricos
   const parsed = extractTechnicalFieldsFromText(combinedRawText);
 
-  // Si se detectó código de barras directo, priorizarlo como serial y código exacto
+  // Si se detectó código de barras directo, priorizarlo como serial exacto
   if (barcode) {
     parsed.detectedSerial = barcode;
     if (!parsed.detectedCode) parsed.detectedCode = barcode;
   }
 
-  // Si se detectó serial pero no código de activo, usar el serial como código
+  // Si se detectó serial pero no código de activo, asignar el serial como código
   if (!parsed.detectedCode && parsed.detectedSerial) {
     parsed.detectedCode = parsed.detectedSerial;
   }

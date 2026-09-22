@@ -21,7 +21,8 @@ import {
   Cpu,
   Barcode,
   Image as ImageIcon,
-  Sparkles
+  Sparkles,
+  ShieldCheck
 } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Equipment, CampusLocation, PlateOcrResult } from '../../types';
@@ -128,7 +129,8 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
     specs: '',
   });
 
-  // OCR Loading state
+  // OCR Loading and Engine state (Prioriza privacidad local con Tesseract.js)
+  const [ocrEngineMode, setOcrEngineMode] = useState<'local_ocr' | 'ai_hybrid'>('local_ocr');
   const [isOcrLoading, setIsOcrLoading] = useState(false);
   const [ocrLoadingMessage, setOcrLoadingMessage] = useState('');
 
@@ -353,7 +355,8 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
       const { plateInfo, source, barcodeDetected, detectedAngle: autoAngle, correctedDataUrl } = await processPlateRecognition(
         file,
         base64,
-        (status) => setOcrLoadingMessage(status)
+        (status) => setOcrLoadingMessage(status),
+        ocrEngineMode
       );
 
       if (correctedDataUrl) {
@@ -779,6 +782,55 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
             <div className="space-y-4">
               {!uploadedImagePreview ? (
                 <div className="space-y-3">
+                  {/* Selector de Privacidad y Motor de Procesamiento */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl shadow-2xs">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shrink-0">
+                        <ShieldCheck className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <span>Reconocimiento OCR con Tesseract.js</span>
+                          {ocrEngineMode === 'local_ocr' && (
+                            <span className="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-full">
+                              Privado / Local
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-[11px] text-slate-500">
+                          Calibrado para patrones de Modelo:, Marca: y Serial: con filtrado alfanumérico limpio.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-lg shrink-0 self-end sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={() => setOcrEngineMode('local_ocr')}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                          ocrEngineMode === 'local_ocr'
+                            ? 'bg-white text-emerald-800 shadow-xs font-bold'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                        title="Procesamiento 100% en el dispositivo con Tesseract.js. No requiere IA externa ni envía fotos a servidores."
+                      >
+                        🔒 Local (Privado)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOcrEngineMode('ai_hybrid')}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                          ocrEngineMode === 'ai_hybrid'
+                            ? 'bg-white text-indigo-700 shadow-xs font-bold'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                        title="Análisis asistido con IA Gemini Vision si está disponible"
+                      >
+                        ⚡ IA Híbrida
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Selector de origen: Tomar Foto con Cámara vs Subir Archivo */}
                   <div className="flex items-center justify-center gap-2 p-1 bg-slate-100 rounded-xl max-w-sm mx-auto text-xs">
                     <button
@@ -957,12 +1009,12 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
                           )}
                           <span>
                             {detectionSource === 'gemini_vision'
-                              ? 'Lectura Asistida por IA Vision (Alta Precisión)'
+                              ? 'Lectura Asistida por IA Vision'
                               : detectionSource === 'hybrid'
-                              ? 'Detección Híbrida: Código de Barras + IA/OCR'
+                              ? 'Detección Híbrida: Código de Barras + OCR Local'
                               : detectionSource === 'barcode'
                               ? 'Código de Barras Decodificado'
-                              : 'Texto y Parámetros Leídos por OCR'}
+                              : 'Motor OCR Tesseract.js (Local Privado)'}
                           </span>
                         </div>
 

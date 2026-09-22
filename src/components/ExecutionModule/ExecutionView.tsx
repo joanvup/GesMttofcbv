@@ -19,7 +19,6 @@ import {
   PlayCircle,
   Zap,
   ShieldAlert,
-  ScanLine,
   Plus,
   Wrench
 } from 'lucide-react';
@@ -37,7 +36,6 @@ interface ExecutionViewProps {
   executions: MaintenanceExecution[];
   onSaveExecution: (execution: MaintenanceExecution) => void;
   onBulkSaveExecutions?: (executedList: MaintenanceExecution[], count: number) => void;
-  onOpenScanner?: () => void;
   onOpenCorrectiveModal?: (equipment?: Equipment, execution?: MaintenanceExecution) => void;
 }
 
@@ -49,7 +47,6 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
   executions,
   onSaveExecution,
   onBulkSaveExecutions,
-  onOpenScanner,
   onOpenCorrectiveModal,
 }) => {
   const [selectedMonth, setSelectedMonth] = useState<number>(0); // 0 = Todos los meses
@@ -263,19 +260,6 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
-
-          {onOpenScanner && (
-            <button
-              type="button"
-              id="btn-execution-scan"
-              onClick={onOpenScanner}
-              className="px-3.5 py-2 text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-lg flex items-center gap-1.5 transition-all shadow-xs"
-              title="Escanear Código QR, Barras, Serial o Foto de Placa con IA para validar o registrar mantenimiento"
-            >
-              <ScanLine className="w-4 h-4" />
-              <span>Escanear QR / Serial</span>
-            </button>
-          )}
 
           {onOpenCorrectiveModal && (
             <button

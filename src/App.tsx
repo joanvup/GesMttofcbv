@@ -18,7 +18,7 @@ import { DatabaseSettings } from './components/DatabaseSettings';
 import { DashboardView } from './components/DashboardView';
 import { EquipmentScannerModal } from './components/Scanner/EquipmentScannerModal';
 import { CorrectiveMaintenanceModal } from './components/ExecutionModule/CorrectiveMaintenanceModal';
-import { CheckCircle, AlertCircle, Info, Database, HelpCircle, Trash2, RotateCcw, X, Shield, Menu, ScanLine } from 'lucide-react';
+import { CheckCircle, AlertCircle, Info, Database, HelpCircle, Trash2, RotateCcw, X, Shield, Menu } from 'lucide-react';
 import { ClearDataModal } from './components/ClearDataModal';
 
 export default function App() {
@@ -568,7 +568,6 @@ export default function App() {
         onLogout={handleLogout} 
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
-        onOpenScanner={handleOpenScanner}
       />
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
@@ -591,17 +590,6 @@ export default function App() {
           
           {isAdmin && (
             <div className="flex items-center gap-2 sm:gap-3">
-              <button
-                type="button"
-                id="header-btn-scanner"
-                onClick={handleOpenScanner}
-                className="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs"
-                title="Escanear Código QR, Barras, Serial o Foto de Etiqueta con OCR"
-              >
-                <ScanLine className="w-4 h-4" />
-                <span className="hidden sm:inline">Escanear QR / Serial / OCR</span>
-              </button>
-
               <button onClick={() => setIsBackupRestoreOpen(true)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors" title="Backup y Restauración">
                 <Database className="w-5 h-5" />
               </button>
@@ -691,7 +679,6 @@ export default function App() {
                 executions={executions}
                 onSaveExecution={handleSaveExecution}
                 onBulkSaveExecutions={handleBulkSaveExecutions}
-                onOpenScanner={handleOpenScanner}
                 onOpenCorrectiveModal={handleOpenCorrectiveModal}
               />
             )}
@@ -747,6 +734,10 @@ export default function App() {
           initialEquipment={equipmentToEdit}
           locations={locations}
           onQuickCreateLocation={handleQuickCreateLocation}
+          onOpenScanner={() => {
+            setIsEquipmentFormOpen(false);
+            setIsScannerOpen(true);
+          }}
         />
       )}
 

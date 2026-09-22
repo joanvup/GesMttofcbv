@@ -12,8 +12,7 @@ import {
   X,
   MapPin,
   Trash2,
-  FileText,
-  ScanLine
+  FileText
 } from 'lucide-react';
 import { ClearDataModal } from './ClearDataModal';
 
@@ -31,7 +30,6 @@ interface NavbarProps {
   onResetData: () => void;
   onClearData: (options: { preserveLocations: boolean }) => void;
   onOpenBackupRestore: () => void;
-  onOpenScanner?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -46,7 +44,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onResetData,
   onClearData,
   onOpenBackupRestore,
-  onOpenScanner,
 }) => {
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -79,19 +76,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Acciones del Sistema */}
           <div className="flex items-center gap-2">
-            {onOpenScanner && (
-              <button
-                type="button"
-                id="btn-nav-scanner"
-                onClick={onOpenScanner}
-                className="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm border border-indigo-400/30"
-                title="Escanear Código QR, Barras, Serial o Foto de Placa con IA"
-              >
-                <ScanLine className="w-4 h-4 text-white" />
-                <span className="hidden sm:inline">Escanear QR / Serial</span>
-              </button>
-            )}
-
             <button
               type="button"
               id="btn-nav-backup-restore"
