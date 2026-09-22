@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  @media print {
+    body {
+      background: white !important;
+      color: black !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    .no-print, header, nav, footer, .print-hidden {
+      display: none !important;
+    }
+
+    .page-break-after-always {
+      break-after: page !important;
+      page-break-after: always !important;
+    }
+
+    .page-break-inside-avoid {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+  }
+}
