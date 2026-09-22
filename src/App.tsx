@@ -17,6 +17,7 @@ import { UserManagement } from './components/UserManagement';
 import { DatabaseSettings } from './components/DatabaseSettings';
 import { DashboardView } from './components/DashboardView';
 import { EquipmentScannerModal } from './components/Scanner/EquipmentScannerModal';
+import { BulkQrPrintModal } from './components/EquipmentModule/BulkQrPrintModal';
 import { CorrectiveMaintenanceModal } from './components/ExecutionModule/CorrectiveMaintenanceModal';
 import { CheckCircle, AlertCircle, Info, Database, HelpCircle, Trash2, RotateCcw, X, Shield, Menu } from 'lucide-react';
 import { ClearDataModal } from './components/ClearDataModal';
@@ -101,6 +102,8 @@ export default function App() {
 
   // Modales y estado para Escáner QR / Serial y Mantenimiento Correctivo
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isBulkQrPrintOpen, setIsBulkQrPrintOpen] = useState(false);
+  const [bulkQrPrintInitialIds, setBulkQrPrintInitialIds] = useState<string[]>([]);
   const [isCorrectiveModalOpen, setIsCorrectiveModalOpen] = useState(false);
   const [selectedEquipmentForCorrective, setSelectedEquipmentForCorrective] = useState<Equipment | null>(null);
   const [selectedExecutionForCorrective, setSelectedExecutionForCorrective] = useState<MaintenanceExecution | null>(null);
@@ -650,6 +653,10 @@ export default function App() {
                 onBulkSchedule={handleNavigateToPlanForBulkSchedule}
                 onBulkChangeFrequency={handleBulkChangeFrequency}
                 onOpenScanner={handleOpenScanner}
+                onOpenBulkQrPrint={(ids) => {
+                  setBulkQrPrintInitialIds(ids || []);
+                  setIsBulkQrPrintOpen(true);
+                }}
               />
             )}
 
@@ -753,6 +760,11 @@ export default function App() {
             setReportsInitialEquipmentId(eq.id);
             setActiveTab('reportes');
           }}
+          onPrintQr={isAdmin ? ((eqId) => {
+            setEquipmentToView(null);
+            setBulkQrPrintInitialIds([eqId]);
+            setIsBulkQrPrintOpen(true);
+          }) : undefined}
         />
       )}
 
@@ -787,6 +799,20 @@ export default function App() {
         onSelectEquipmentForPreventive={(eq) => handleEquipmentSelectedFromScanner(eq, 'preventive')}
         onViewEquipmentDetails={(eq) => handleEquipmentSelectedFromScanner(eq, 'view')}
       />
+
+      {/* Modal de Impresión Masiva de Etiquetas QR Físicas (Tickets / Rollo Térmico) */}
+      {isAdmin && (
+        <BulkQrPrintModal
+          isOpen={isBulkQrPrintOpen}
+          onClose={() => {
+            setIsBulkQrPrintOpen(false);
+            setBulkQrPrintInitialIds([]);
+          }}
+          equipments={equipments}
+          locations={locations}
+          initialSelectedIds={bulkQrPrintInitialIds}
+        />
+      )}
 
       {/* Modal de Registro de Mantenimiento Correctivo */}
       <CorrectiveMaintenanceModal

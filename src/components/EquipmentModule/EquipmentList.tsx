@@ -21,7 +21,9 @@ import {
   CheckSquare,
   Square,
   X,
-  ScanLine
+  ScanLine,
+  Printer,
+  QrCode
 } from 'lucide-react';
 import { Equipment, EquipmentStatus, EquipmentFrequency, CampusLocation } from '../../types';
 import { ExportService } from '../../services/exportService';
@@ -38,6 +40,7 @@ interface EquipmentListProps {
   onBulkSchedule?: (equipmentIds: string[]) => void;
   onBulkChangeFrequency?: (equipmentIds: string[], frequency: EquipmentFrequency) => void;
   onOpenScanner?: () => void;
+  onOpenBulkQrPrint?: (initialSelectedIds?: string[]) => void;
 }
 
 export const EquipmentList: React.FC<EquipmentListProps> = ({
@@ -52,6 +55,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({
   onBulkSchedule,
   onBulkChangeFrequency,
   onOpenScanner,
+  onOpenBulkQrPrint,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('todas');
@@ -209,6 +213,18 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({
             <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
             Importar Excel (.xlsx)
           </button>
+          {onOpenBulkQrPrint && (
+            <button
+              type="button"
+              id="btn-equipment-bulk-qr"
+              onClick={() => onOpenBulkQrPrint()}
+              className="px-3.5 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+              title="Imprimir etiquetas físicas con código QR en impresora de tickets / térmica"
+            >
+              <Printer className="w-4 h-4 text-indigo-600" />
+              <span>Imprimir Etiquetas QR</span>
+            </button>
+          )}
           {onOpenScanner && (
             <button
               type="button"
@@ -353,6 +369,19 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {onOpenBulkQrPrint && (
+              <button
+                type="button"
+                id="btn-bulk-print-qr-selection"
+                onClick={() => onOpenBulkQrPrint(Array.from(selectedIds))}
+                className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                title="Imprimir etiquetas físicas con QR para los equipos seleccionados"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Imprimir Etiquetas QR ({selectedIds.size})</span>
+              </button>
+            )}
+
             {onBulkSchedule && (
               <button
                 type="button"
@@ -492,6 +521,16 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({
                       </td>
                       <td className="py-3.5 px-4 text-right whitespace-nowrap">
                         <div className="inline-flex items-center gap-1">
+                          {onOpenBulkQrPrint && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenBulkQrPrint([eq.id])}
+                              title="Imprimir Etiqueta QR Física"
+                              className="p-1.5 text-slate-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors cursor-pointer"
+                            >
+                              <Printer className="w-4 h-4" />
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => onViewEquipment(eq)}
