@@ -8,9 +8,10 @@ interface EquipmentDetailsModalProps {
   equipment: Equipment | null;
   isOpen: boolean;
   onClose: () => void;
-  onEdit: (equipment: Equipment) => void;
-  onToggleStatus: (equipment: Equipment) => void;
+  onEdit?: (equipment: Equipment) => void;
+  onToggleStatus?: (equipment: Equipment) => void;
   onViewOfficialReport?: (equipment: Equipment) => void;
+  onPrintQr?: (equipmentId: string) => void;
 }
 
 export const EquipmentDetailsModal: React.FC<EquipmentDetailsModalProps> = ({
@@ -20,6 +21,7 @@ export const EquipmentDetailsModal: React.FC<EquipmentDetailsModalProps> = ({
   onEdit,
   onToggleStatus,
   onViewOfficialReport,
+  onPrintQr,
 }) => {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
@@ -138,17 +140,32 @@ export const EquipmentDetailsModal: React.FC<EquipmentDetailsModalProps> = ({
               </div>
             </div>
 
-            {qrDataUrl && (
-              <button
-                type="button"
-                onClick={handleDownloadQr}
-                className="w-full sm:w-auto px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-2xs transition-colors shrink-0"
-                title="Descargar imagen PNG para imprimir etiqueta"
-              >
-                <Download className="w-3.5 h-3.5 text-indigo-600" />
-                Descargar QR (PNG)
-              </button>
-            )}
+            <div className="flex flex-col sm:flex-row items-center gap-2 shrink-0">
+              {onPrintQr && (
+                <button
+                  type="button"
+                  id="btn-details-print-ticket"
+                  onClick={() => onPrintQr(equipment.id)}
+                  className="w-full sm:w-auto px-3.5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                  title="Imprimir etiqueta física en impresora térmica de tickets"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  Imprimir Etiqueta (Ticket)
+                </button>
+              )}
+
+              {qrDataUrl && (
+                <button
+                  type="button"
+                  onClick={handleDownloadQr}
+                  className="w-full sm:w-auto px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-2xs transition-colors"
+                  title="Descargar imagen PNG para imprimir etiqueta"
+                >
+                  <Download className="w-3.5 h-3.5 text-indigo-600" />
+                  Descargar QR (PNG)
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Partes del equipo */}
