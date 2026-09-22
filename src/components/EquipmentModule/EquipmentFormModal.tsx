@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Server, Wrench, Layers, HelpCircle, Check, MapPin } from 'lucide-react';
+import { X, Plus, Trash2, Server, Wrench, Layers, HelpCircle, Check, MapPin, ScanLine } from 'lucide-react';
 import { Equipment, EquipmentFrequency, EquipmentStatus, CampusLocation } from '../../types';
 import { MONTH_SHORT_NAMES } from '../../services/storage';
 
@@ -10,6 +10,7 @@ interface EquipmentFormModalProps {
   initialEquipment?: Equipment | null;
   locations?: CampusLocation[];
   onQuickCreateLocation?: (location: CampusLocation) => void;
+  onOpenScanner?: () => void;
 }
 
 const COMMON_PREFIXES = [
@@ -29,6 +30,7 @@ export const EquipmentFormModal: React.FC<EquipmentFormModalProps> = ({
   initialEquipment,
   locations = [],
   onQuickCreateLocation,
+  onOpenScanner,
 }) => {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
@@ -180,12 +182,26 @@ export const EquipmentFormModal: React.FC<EquipmentFormModalProps> = ({
               Sistema de Mantenimiento Preventivo FCBV
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-200 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onOpenScanner && (
+              <button
+                type="button"
+                id="btn-modal-equipment-scan"
+                onClick={onOpenScanner}
+                className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                title="Escanear Código QR o foto de etiqueta con OCR para auto-completar los datos"
+              >
+                <ScanLine className="w-3.5 h-3.5" />
+                <span>Escanear QR / OCR Etiquetas</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-200 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Content Form */}

@@ -10,8 +10,7 @@ import {
   ChevronRight,
   User as UserIcon,
   Users,
-  Database,
-  ScanLine
+  Database
 } from 'lucide-react';
 import { ActiveTab } from './Navbar';
 
@@ -22,7 +21,6 @@ interface SidebarProps {
   onLogout: () => void;
   isOpen: boolean;
   onClose: () => void;
-  onOpenScanner?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -31,8 +29,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   user,
   onLogout,
   isOpen,
-  onClose,
-  onOpenScanner
+  onClose
 }) => {
   const isRevisor = user?.role === 'revisor';
 
@@ -84,23 +81,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-        {onOpenScanner && !isRevisor && (
-          <div className="mb-3">
-            <button
-              type="button"
-              id="sidebar-btn-scanner"
-              onClick={() => {
-                onOpenScanner();
-                onClose();
-              }}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-950/50 border border-indigo-400/30 transition-all cursor-pointer"
-            >
-              <ScanLine className="w-4 h-4 text-white" />
-              <span>Escanear QR / OCR Etiquetas</span>
-            </button>
-          </div>
-        )}
-
         {navItems.filter(item => !item.hidden).map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;

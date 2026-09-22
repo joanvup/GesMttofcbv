@@ -218,7 +218,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({
               title="Escanear Código QR, Barras, Serial o Foto de Etiqueta con OCR"
             >
               <ScanLine className="w-4 h-4" />
-              <span>Escanear Equipo (OCR)</span>
+              <span>Escanear QR / OCR Etiquetas</span>
             </button>
           )}
           <button
