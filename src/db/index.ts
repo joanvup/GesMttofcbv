@@ -184,6 +184,12 @@ export async function migrateSqliteToMysql(cfg: {
         action_taken TEXT,
         downtime_hours INT,
         final_operational_status VARCHAR(50),
+        record_status VARCHAR(20) NOT NULL DEFAULT 'borrador',
+        record_version INT NOT NULL DEFAULT 1,
+        approved_by VARCHAR(100),
+        approved_at VARCHAR(50),
+        closed_by VARCHAR(100),
+        closed_at VARCHAR(50),
         created_at VARCHAR(50) NOT NULL,
         updated_at VARCHAR(50) NOT NULL
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -262,7 +268,7 @@ export async function migrateSqliteToMysql(cfg: {
 
     for (const ex of allExecutions) {
       await connection.query(
-        'INSERT INTO executions (id, equipment_id, year, month, scheduled_date, is_executed, executed_date, responsible_name, responsible_role, signature_data_url, completed_tasks, parts_replaced, observations, maintenance_type, failure_description, action_taken, downtime_hours, final_operational_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO executions (id, equipment_id, year, month, scheduled_date, is_executed, executed_date, responsible_name, responsible_role, signature_data_url, completed_tasks, parts_replaced, observations, maintenance_type, failure_description, action_taken, downtime_hours, final_operational_status, record_status, record_version, approved_by, approved_at, closed_by, closed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
           ex.id,
           ex.equipmentId,
@@ -282,6 +288,12 @@ export async function migrateSqliteToMysql(cfg: {
           ex.actionTaken || null,
           ex.downtimeHours || null,
           ex.finalOperationalStatus || null,
+          ex.recordStatus || 'borrador',
+          ex.recordVersion ?? 1,
+          ex.approvedBy || null,
+          ex.approvedAt || null,
+          ex.closedBy || null,
+          ex.closedAt || null,
           ex.createdAt,
           ex.updatedAt,
         ]

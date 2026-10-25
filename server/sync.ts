@@ -17,11 +17,48 @@ export const SYNC_ENTITY_SET = new Set<string>(SYNC_ENTITIES);
 export class SyncError extends Error {
   constructor(
     public readonly statusCode: number,
-    message: string
+    message: string,
+    public readonly code?: string
   ) {
     super(message);
     this.name = 'SyncError';
   }
+}
+
+export const RECORD_LOCKED_CODE = 'RECORD_LOCKED';
+
+// Campos de contenido del acta. Excluye deliberadamente los datos del ciclo de
+// vida SGC (record_status, record_version, approved_*, closed_*) y las marcas de
+// tiempo, que gestiona el servidor.
+const EXECUTION_CONTENT_KEYS = [
+  'equipmentId',
+  'year',
+  'month',
+  'scheduledDate',
+  'isExecuted',
+  'executedDate',
+  'responsibleName',
+  'responsibleRole',
+  'signatureDataUrl',
+  'completedTasks',
+  'partsReplaced',
+  'observations',
+  'maintenanceType',
+  'failureDescription',
+  'actionTaken',
+  'downtimeHours',
+  'finalOperationalStatus',
+] as const;
+
+// Normaliza un valor para comparar contenido: undefined y cadena vacía equivalen
+// a null, de modo que pequeñas diferencias de forma no cuenten como edición.
+function normalizeContentValue(value: unknown): unknown {
+  if (value === undefined || value === '') return null;
+  return value;
+}
+
+function contentSignature(record: any): string {
+  return JSON.stringify(EXECUTION_CONTENT_KEYS.map((key) => normalizeContentValue(record?.[key])));
 }
 
 // El tipo exacto de la transacción de Drizzle es complejo de exportar; el
@@ -277,21 +314,57 @@ function replaceExecutions(tx: SyncTx, payload: unknown): void {
     });
   }
 
-  const existingIds = new Set(
-    tx
-      .select()
-      .from(executions)
-      .all()
-      .map((row: any) => row.id)
-  );
+  const existing: any[] = tx.select().from(executions).all();
+  const existingById = new Map(existing.map((row) => [row.id, row]));
+
+  // Las actas cerradas no se eliminan: primero deben reabrirse (queda en la bitácora).
+  for (const row of existing) {
+    if (!seenIds.has(row.id) && row.recordStatus === 'cerrado') {
+      throw new SyncError(
+        409,
+        `El acta ${row.id} está cerrada y no puede eliminarse. Reábrala antes de quitarla.`,
+        RECORD_LOCKED_CODE
+      );
+    }
+  }
   deleteMissing(tx, executions, seenIds, executions.id);
 
   for (const item of desired) {
-    if (existingIds.has(item.id)) {
-      tx.update(executions).set(item).where(eq(executions.id, item.id)).run();
-    } else {
-      tx.insert(executions).values(item).run();
+    const stored = existingById.get(item.id);
+    const now = nowIso();
+
+    if (!stored) {
+      // Acta nueva: entra en borrador con versión 1.
+      tx.insert(executions)
+        .values({ ...item, recordStatus: 'borrador', recordVersion: 1, updatedAt: now })
+        .run();
+      continue;
     }
+
+    // Solo se comparan campos de contenido: las marcas del ciclo de vida SGC y
+    // las fechas de auditoría no cuentan como edición.
+    if (contentSignature(stored) !== contentSignature(item)) {
+      if (stored.recordStatus === 'cerrado') {
+        throw new SyncError(
+          409,
+          `El acta ${item.id} está cerrada y no puede modificarse. Reábrala para editarla.`,
+          RECORD_LOCKED_CODE
+        );
+      }
+      if (stored.recordStatus === 'aprobado') {
+        throw new SyncError(
+          409,
+          `El acta ${item.id} está aprobada y no puede modificarse. Reábrala para editarla.`,
+          RECORD_LOCKED_CODE
+        );
+      }
+    }
+
+    // Actualiza el contenido conservando createdAt y las marcas SGC del servidor.
+    tx.update(executions)
+      .set({ ...item, createdAt: stored.createdAt, updatedAt: now })
+      .where(eq(executions.id, item.id))
+      .run();
   }
 }
 
@@ -347,4 +420,61 @@ export function bumpEntityRevision(tx: SyncTx, entity: string, username?: string
 
 export function isSyncEntity(value: string): value is SyncEntity {
   return SYNC_ENTITY_SET.has(value);
+}
+
+// ---------------------------------------------------------------------------
+// Ciclo de vida SGC de las actas
+// ---------------------------------------------------------------------------
+
+export type ExecutionAction = 'approve' | 'close' | 'reopen';
+export type ExecutionRecordStatus = 'borrador' | 'aprobado' | 'cerrado';
+
+/**
+ * Aplica una transición de estado del acta y devuelve la fila actualizada.
+ * El servidor es la única autoridad sobre el estado y la versión: el cliente
+ * nunca puede fijarlos directamente.
+ */
+export function transitionExecution(id: string, action: ExecutionAction, username: string | null): any {
+  const stored = db.select().from(executions).where(eq(executions.id, id)).get();
+  if (!stored) throw new SyncError(404, 'Acta de mantenimiento no encontrada.');
+
+  const now = nowIso();
+  const version = (stored.recordVersion ?? 1) + 1;
+  const base = { recordVersion: version, updatedAt: now };
+
+  if (action === 'approve') {
+    if (stored.recordStatus !== 'borrador') {
+      throw new SyncError(409, 'Solo se pueden aprobar actas en estado borrador.');
+    }
+    db.update(executions)
+      .set({ ...base, recordStatus: 'aprobado', approvedBy: username, approvedAt: now })
+      .where(eq(executions.id, id))
+      .run();
+  } else if (action === 'close') {
+    if (stored.recordStatus !== 'aprobado') {
+      throw new SyncError(409, 'Solo se pueden cerrar actas previamente aprobadas.');
+    }
+    db.update(executions)
+      .set({ ...base, recordStatus: 'cerrado', closedBy: username, closedAt: now })
+      .where(eq(executions.id, id))
+      .run();
+  } else {
+    if (stored.recordStatus === 'borrador') {
+      throw new SyncError(409, 'El acta ya se encuentra en estado borrador.');
+    }
+    // Reabrir limpia las marcas de aprobación/cierre; la versión sigue subiendo.
+    db.update(executions)
+      .set({
+        ...base,
+        recordStatus: 'borrador',
+        approvedBy: null,
+        approvedAt: null,
+        closedBy: null,
+        closedAt: null,
+      })
+      .where(eq(executions.id, id))
+      .run();
+  }
+
+  return db.select().from(executions).where(eq(executions.id, id)).get();
 }

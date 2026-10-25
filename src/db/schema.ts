@@ -67,6 +67,13 @@ export const executions = sqliteTable('executions', {
   actionTaken: text('action_taken'),
   downtimeHours: integer('downtime_hours'),
   finalOperationalStatus: text('final_operational_status'),
+  // Ciclo de vida SGC del acta (gestionado por el servidor)
+  recordStatus: text('record_status').notNull().default('borrador'),
+  recordVersion: integer('record_version').notNull().default(1),
+  approvedBy: text('approved_by'),
+  approvedAt: text('approved_at'),
+  closedBy: text('closed_by'),
+  closedAt: text('closed_at'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });

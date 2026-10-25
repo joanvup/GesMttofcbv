@@ -713,6 +713,19 @@ export const StorageService = {
     }
   },
 
+  // --- Ciclo de vida SGC del acta ---
+  async approveExecution(id: string): Promise<void> {
+    await apiRequest(`/api/executions/${encodeURIComponent(id)}/approve`, 'POST', {});
+  },
+
+  async closeExecution(id: string): Promise<void> {
+    await apiRequest(`/api/executions/${encodeURIComponent(id)}/close`, 'POST', {});
+  },
+
+  async reopenExecution(id: string): Promise<void> {
+    await apiRequest(`/api/executions/${encodeURIComponent(id)}/reopen`, 'POST', {});
+  },
+
   // Guarda o actualiza un registro individual de ejecución (preventivo o correctivo)
   async upsertExecution(execution: MaintenanceExecution): Promise<void> {
     const list = await this.getExecutions();

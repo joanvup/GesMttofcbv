@@ -29,6 +29,7 @@ import {
   bumpEntityRevision,
   getEntityRevision,
   isSyncEntity,
+  transitionExecution,
 } from './server/sync';
 import {
   BackupUnavailableError,
@@ -210,6 +211,14 @@ const authenticateToken = (req: any, res: any, next: any) => {
 const requireAdmin = (req: any, res: any, next: any) => {
   if (req.user?.role !== 'admin') {
     return res.status(403).json({ error: 'Requiere permisos de administrador' });
+  }
+  next();
+};
+
+// Aprobación/revisión SGC: administradores y revisores.
+const requireReviewerOrAdmin = (req: any, res: any, next: any) => {
+  if (req.user?.role !== 'admin' && req.user?.role !== 'revisor') {
+    return res.status(403).json({ error: 'Requiere permisos de administrador o revisor SGC' });
   }
   next();
 };
@@ -526,7 +535,7 @@ app.post('/api/sync/:entity', authenticateToken, requireAdmin, (req, res) => {
     if (e instanceof SyncError) {
       const response: Record<string, any> = { success: false, error: e.message };
       if (e.statusCode === 409) {
-        response.code = 'SYNC_CONFLICT';
+        response.code = e.code ?? 'SYNC_CONFLICT';
         response.revision = getEntityRevision(entity);
       }
       return res.status(e.statusCode).json(response);
@@ -545,6 +554,43 @@ app.post('/api/sync/:entity', authenticateToken, requireAdmin, (req, res) => {
     res.status(500).json({ success: false, error: e.message });
   }
 });
+
+// --- Ciclo de vida SGC de las actas (aprobar / cerrar / reabrir) ---
+// El estado y la versión del acta solo los cambia el servidor; el cliente nunca
+// envía estos campos por la sincronización.
+function registerExecutionTransition(
+  path: string,
+  action: 'approve' | 'close' | 'reopen',
+  auditActionName: string,
+  middleware: any
+) {
+  app.post(path, authenticateToken, middleware, (req: any, res) => {
+    try {
+      const execution = transitionExecution(req.params.id, action, req.user?.username ?? null);
+      recordAudit(req, {
+        action: auditActionName,
+        entity: 'executions',
+        entityId: req.params.id,
+        details: { recordStatus: execution?.recordStatus, recordVersion: execution?.recordVersion },
+      });
+      res.json({ success: true, data: execution });
+    } catch (e: any) {
+      if (e instanceof SyncError) {
+        return res.status(e.statusCode).json({ success: false, code: e.code, error: e.message });
+      }
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+}
+
+registerExecutionTransition(
+  '/api/executions/:id/approve',
+  'approve',
+  'execution.approve',
+  requireReviewerOrAdmin
+);
+registerExecutionTransition('/api/executions/:id/close', 'close', 'execution.close', requireReviewerOrAdmin);
+registerExecutionTransition('/api/executions/:id/reopen', 'reopen', 'execution.reopen', requireAdmin);
 
 // GET / POST settings (Signature)
 app.get('/api/settings/:key', authenticateToken, (req, res) => {

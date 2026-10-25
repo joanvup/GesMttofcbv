@@ -484,10 +484,31 @@ export default function App() {
 
       const merged = Array.from(map.values());
       await StorageService.saveExecutions(merged);
-      setExecutions(merged);
+      // Se recargan del servidor para conservar el estado y la versión SGC.
+      setExecutions(await StorageService.getExecutions());
       showToast(`Ejecución masiva exitosa: ${count} órdenes.`, 'success');
     } catch (e: any) {
       showToast(`Error en la ejecución masiva: ${e.message}`, 'error');
+      await loadData(selectedYear);
+    }
+  };
+
+  // Transiciones del ciclo de vida SGC del acta (aprobar / cerrar / reabrir)
+  const handleTransitionExecution = async (id: string, action: 'approve' | 'close' | 'reopen') => {
+    const labels: Record<typeof action, string> = {
+      approve: 'aprobada',
+      close: 'cerrada',
+      reopen: 'reabierta',
+    };
+    try {
+      if (action === 'approve') await StorageService.approveExecution(id);
+      else if (action === 'close') await StorageService.closeExecution(id);
+      else await StorageService.reopenExecution(id);
+      setExecutions(await StorageService.getExecutions());
+      showToast(`Acta ${labels[action]} correctamente.`, 'success');
+    } catch (e: any) {
+      showToast(e.message || 'No se pudo actualizar el estado del acta.', 'error');
+      await loadData(selectedYear);
     }
   };
 
@@ -691,22 +712,16 @@ export default function App() {
   const handleSaveCorrectiveMaintenance = async (executionData: MaintenanceExecution) => {
     try {
       await StorageService.recordCorrectiveMaintenance(executionData);
-      setExecutions((prev) => {
-        const idx = prev.findIndex((e) => e.id === executionData.id);
-        if (idx >= 0) {
-          const updated = [...prev];
-          updated[idx] = executionData;
-          return updated;
-        }
-        return [executionData, ...prev];
-      });
+      // Se recargan del servidor para conservar el estado y la versión SGC del acta.
+      setExecutions(await StorageService.getExecutions());
       setIsCorrectiveModalOpen(false);
       setSelectedEquipmentForCorrective(null);
       setSelectedExecutionForCorrective(null);
       showToast('Mantenimiento correctivo guardado y sincronizado con éxito', 'success');
     } catch (err: any) {
       console.error('Error al guardar correctivo:', err);
-      showToast('Error al guardar mantenimiento correctivo', 'error');
+      showToast(err.message || 'Error al guardar mantenimiento correctivo', 'error');
+      await loadData(selectedYear);
     }
   };
 
@@ -723,6 +738,7 @@ export default function App() {
   }
 
   const isAdmin = user.role === 'admin';
+  const isRevisor = user.role === 'revisor';
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 antialiased overflow-hidden">
@@ -900,7 +916,7 @@ export default function App() {
               />
             )}
 
-            {activeTab === 'ejecucion' && isAdmin && (
+            {activeTab === 'ejecucion' && (isAdmin || isRevisor) && (
               <ExecutionView
                 equipments={equipments}
                 selectedYear={selectedYear}
@@ -910,6 +926,8 @@ export default function App() {
                 onSaveExecution={handleSaveExecution}
                 onBulkSaveExecutions={handleBulkSaveExecutions}
                 onOpenCorrectiveModal={handleOpenCorrectiveModal}
+                currentUserRole={user.role}
+                onTransitionExecution={handleTransitionExecution}
               />
             )}
 
@@ -1066,6 +1084,11 @@ export default function App() {
         onSave={handleSaveCorrectiveMaintenance}
         equipment={selectedEquipmentForCorrective}
         initialExecution={selectedExecutionForCorrective}
+        readOnly={
+          !isAdmin ||
+          selectedExecutionForCorrective?.recordStatus === 'aprobado' ||
+          selectedExecutionForCorrective?.recordStatus === 'cerrado'
+        }
       />
 
       {isAdmin && (

@@ -136,6 +136,18 @@ CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_log (entity);
 CREATE INDEX IF NOT EXISTS idx_audit_username ON audit_log (username);
 `,
   },
+  {
+    id: '0004_sgc_lifecycle',
+    description: 'Ciclo de vida SGC de las actas (borrador/aprobado/cerrado y versión)',
+    sql: `
+ALTER TABLE executions ADD COLUMN record_status TEXT NOT NULL DEFAULT 'borrador';
+ALTER TABLE executions ADD COLUMN record_version INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE executions ADD COLUMN approved_by TEXT;
+ALTER TABLE executions ADD COLUMN approved_at TEXT;
+ALTER TABLE executions ADD COLUMN closed_by TEXT;
+ALTER TABLE executions ADD COLUMN closed_at TEXT;
+`,
+  },
 ];
 
 function checksum(sql: string): string {

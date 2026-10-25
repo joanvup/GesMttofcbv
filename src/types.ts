@@ -53,6 +53,10 @@ export interface AnnualPlanMatrix {
 
 export type MaintenanceType = 'preventivo' | 'correctivo';
 
+// Ciclo de vida SGC del acta de mantenimiento:
+// borrador → aprobado (revisor SGC) → cerrado (inmutable). Reabrir vuelve a borrador.
+export type RecordStatus = 'borrador' | 'aprobado' | 'cerrado';
+
 export interface MaintenanceExecution {
   id: string; // unique ID or `${equipmentId}_${year}_${month}` or `${equipmentId}_corr_${timestamp}`
   equipmentId: string;
@@ -73,6 +77,13 @@ export interface MaintenanceExecution {
   actionTaken?: string; // Solución / Acción correctiva realizada
   downtimeHours?: number; // Tiempo fuera de servicio (horas)
   finalOperationalStatus?: 'operativo' | 'requiere_repuesto' | 'baja'; // Estado final
+  // Ciclo de vida SGC (gestionado por el servidor, no editable por el cliente)
+  recordStatus?: RecordStatus; // por defecto 'borrador'
+  recordVersion?: number; // incrementa en cada transición de estado
+  approvedBy?: string; // usuario que aprobó
+  approvedAt?: string; // fecha de aprobación (ISO)
+  closedBy?: string; // usuario que cerró
+  closedAt?: string; // fecha de cierre (ISO)
   createdAt: string;
   updatedAt: string;
 }

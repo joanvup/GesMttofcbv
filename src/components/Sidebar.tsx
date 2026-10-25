@@ -37,7 +37,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'dashboard', label: '0. Panel de Control', icon: ShieldCheck, hidden: isRevisor },
     { id: 'equipos', label: '1. Censo de Equipos', icon: Server, hidden: isRevisor },
     { id: 'plan', label: '2. Plan Anual', icon: Calendar, hidden: isRevisor },
-    { id: 'ejecucion', label: '3. Registro Ejecución', icon: Wrench, hidden: isRevisor },
+    {
+      id: 'ejecucion',
+      label: isRevisor ? '3. Revisión de Actas (SGC)' : '3. Registro Ejecución',
+      icon: Wrench,
+      hidden: false,
+    },
     { id: 'ubicaciones', label: '4. Mapa de Áreas', icon: MapPin, hidden: isRevisor },
     { id: 'reportes', label: '5. Reportes Oficiales SGC', icon: FileText, hidden: false },
     { id: 'usuarios', label: '6. Gestión de Usuarios', icon: Users, hidden: isRevisor },

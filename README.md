@@ -98,6 +98,7 @@ los datos reales.
 - `tests/sync.test.ts`: lectura/escritura de datos y permisos por rol.
 - `tests/concurrency.test.ts`: bloqueo optimista (409), sincronización no destructiva y copias.
 - `tests/audit.test.ts`: migraciones versionadas y bitácora de auditoría.
+- `tests/executions.test.ts`: ciclo de vida SGC de las actas (aprobar, cerrar, reabrir y bloqueo).
 - `tests/dates.test.ts`: fechas locales (sin desfase UTC) y días hábiles.
 - `tests/env.test.ts`: validación de variables de entorno.
 
@@ -121,6 +122,7 @@ mantiene un contador de revisión:
 2. `POST /api/sync/:entity` recibe `{ data, expectedRevision }` (o el encabezado `If-Match`).
 3. Si la revisión ya no coincide, la API responde **`409`** con `code: "SYNC_CONFLICT"` en lugar
    de sobrescribir el trabajo del otro usuario. La interfaz avisa y recarga los datos.
+   (Las ediciones sobre actas bloqueadas usan el mismo `409` con `code: "RECORD_LOCKED"`.)
 
 Además, las escrituras ya **no** borran y reinsertan toda la tabla: se hace _upsert_ de lo
 recibido y se eliminan únicamente los registros ausentes, dentro de una transacción.
@@ -136,7 +138,30 @@ El esquema se aplica por migraciones numeradas que se ejecutan al arrancar el se
 - Si una migración ya aplicada cambia, solo se emite un aviso: **cree una migración nueva en
   lugar de editar una existente**.
 
-Migraciones actuales: `0001_initial`, `0002_entity_revisions`, `0003_audit_log`.
+Migraciones actuales: `0001_initial`, `0002_entity_revisions`, `0003_audit_log`, `0004_sgc_lifecycle`.
+
+## Ciclo de vida SGC de las actas (borrador → aprobado → cerrado)
+
+Cada acta de mantenimiento (preventiva o correctiva) tiene un **estado de registro** y una
+**versión**, que **solo cambia el servidor**; el cliente nunca los envía por la sincronización.
+
+| Estado     | Quién lo alcanza                   | Edición de contenido  |
+| ---------- | ---------------------------------- | --------------------- |
+| `borrador` | Estado inicial de toda acta        | Permitida             |
+| `aprobado` | `admin` o `revisor`                | Bloqueada             |
+| `cerrado`  | `admin` o `revisor` (tras aprobar) | Bloqueada e inmutable |
+
+- **Aprobar / cerrar / reabrir** se hacen con endpoints dedicados, no con el _sync_:
+  - `POST /api/executions/:id/approve` — `admin` y `revisor`.
+  - `POST /api/executions/:id/close` — `admin` y `revisor` (requiere estado `aprobado`).
+  - `POST /api/executions/:id/reopen` — **solo `admin`** (vuelve a `borrador` y limpia las marcas).
+- Intentar cambiar el **contenido** de un acta `aprobada` o `cerrada` por la sincronización
+  responde **`409`** con `code: "RECORD_LOCKED"`. Tampoco se pueden **eliminar** actas cerradas:
+  primero deben reabrirse.
+- Cada transición incrementa `record_version` y guarda quién y cuándo (`approved_by/at`,
+  `closed_by/at`).
+- El revisor SGC accede a la pestaña _3. Revisión de Actas (SGC)_ en **modo lectura**: puede ver,
+  aprobar y cerrar, pero no crear ni editar contenido.
 
 ## Auditoría (trazabilidad SGC)
 
@@ -146,6 +171,8 @@ se borran por API) de los eventos relevantes:
 - Inicios de sesión correctos y fallidos.
 - Altas, cambios y bajas de usuarios.
 - Escrituras de sincronización (equipos, ubicaciones, edificios, planes anuales, ejecuciones).
+- Transiciones del ciclo de vida de las actas (`execution.approve`, `execution.close`,
+  `execution.reopen`).
 - Vaciar datos, restaurar valores por defecto y cambios de configuración.
 - Creación/eliminación de copias de seguridad y cambio de logo.
 
