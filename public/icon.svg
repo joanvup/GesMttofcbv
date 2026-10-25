@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="FCBV SGC">
+  <rect width="512" height="512" rx="96" fill="#4f46e5" />
+  <g fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-weight="700" text-anchor="middle">
+    <text x="256" y="290" font-size="150" letter-spacing="4">FCBV</text>
+    <text x="256" y="370" font-size="64" letter-spacing="8" opacity="0.85">SGC</text>
+  </g>
+  <path
+    d="M170 392 h172"
+    stroke="#c7d2fe"
+    stroke-width="16"
+    stroke-linecap="round"
+  />
+</svg>

@@ -13,6 +13,7 @@ import {
   Database,
 } from 'lucide-react';
 import { ActiveTab } from './Navbar';
+import { OfflineIndicator } from './OfflineIndicator';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -21,6 +22,7 @@ interface SidebarProps {
   onLogout: () => void;
   isOpen: boolean;
   onClose: () => void;
+  onSyncPending?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -30,6 +32,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLogout,
   isOpen,
   onClose,
+  onSyncPending,
 }) => {
   const isRevisor = user?.role === 'revisor';
 
@@ -116,6 +119,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               );
             })}
         </nav>
+
+        {/* Estado de conexión y cola offline */}
+        <div className="border-t border-slate-800 py-1 print:hidden">
+          <OfflineIndicator onSynced={onSyncPending} />
+        </div>
 
         {/* Footer Actions */}
         <div className="p-4 border-t border-slate-800 space-y-2">

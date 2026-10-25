@@ -12,6 +12,19 @@ import {
   AuditRecord,
   AuditSummary,
 } from '../types';
+import {
+  cacheEntity,
+  clearCache,
+  deleteOperation,
+  enqueueOperation,
+  isOnline,
+  listOperations,
+  notifyOutboxChange,
+  readCachedEntity,
+  subscribeOutbox,
+  updateOperation,
+  type OutboxOperation,
+} from './offline';
 
 const STORAGE_KEYS = {
   EQUIPMENT: 'fcbv_equipment_list_v1',
@@ -596,29 +609,150 @@ const apiCall = async (url: string, method: string = 'GET', body?: any) => {
 
 // --- Acceso a las entidades sincronizadas con bloqueo optimista ---
 
-async function syncGet<T>(entity: string): Promise<T> {
-  const response = await apiRequest(`/api/sync/${entity}`, 'GET', undefined, { entity });
-  if (typeof response.revision === 'number') {
-    syncRevisions[entity] = response.revision;
+// Un fallo de red se manifiesta como `TypeError` (fetch rechaza) o porque el
+// navegador ya sabe que no hay conexión.
+const isOfflineError = (error: unknown): boolean => {
+  if (!isOnline()) return true;
+  return error instanceof TypeError;
+};
+
+// --- Cola de escrituras pendientes (outbox) ---
+
+let flushingOutbox = false;
+
+/**
+ * Envía al servidor las escrituras encoladas mientras no había conexión.
+ * Se conserva el orden; al primer conflicto se detiene y se marca la operación
+ * como fallida para que el usuario la revise (nunca se sobreescribe en silencio).
+ */
+export async function flushOutbox(): Promise<{ flushed: number; failed: number }> {
+  if (flushingOutbox || !isOnline()) return { flushed: 0, failed: 0 };
+
+  flushingOutbox = true;
+  let flushed = 0;
+  let failed = 0;
+  try {
+    const operations = await listOperations();
+    for (const op of operations) {
+      if (op.status === 'failed') continue;
+      try {
+        if (op.kind === 'sync' && op.entity) {
+          const response = await apiRequest(
+            `/api/sync/${op.entity}`,
+            'POST',
+            { data: op.data, expectedRevision: op.expectedRevision },
+            { entity: op.entity }
+          );
+          if (typeof response.revision === 'number') {
+            syncRevisions[op.entity] = response.revision;
+          }
+        } else if (op.url) {
+          await apiRequest(op.url, op.method || 'POST', op.body);
+        }
+        if (typeof op.id === 'number') await deleteOperation(op.id);
+        flushed += 1;
+      } catch (e: any) {
+        if (isOfflineError(e)) break; // sigue sin conexión: permanece pendiente
+        if (typeof op.id === 'number') {
+          await updateOperation(op.id, {
+            status: 'failed',
+            attempts: op.attempts + 1,
+            error: e?.message || 'No se pudo sincronizar.',
+          });
+        }
+        failed += 1;
+        break; // preservar el orden del resto de la cola
+      }
+    }
+  } finally {
+    flushingOutbox = false;
+    if (flushed > 0 || failed > 0) notifyOutboxChange();
   }
-  return response.data as T;
+  return { flushed, failed };
+}
+
+// Vuelca la cola antes de leer para no perder cambios locales optimistas.
+async function flushPendingBeforeRead(): Promise<void> {
+  const pending = await listOperations();
+  if (pending.some((op) => op.status === 'pending')) {
+    await flushOutbox();
+  }
+}
+
+async function syncGet<T>(entity: string): Promise<T> {
+  if (isOnline()) await flushPendingBeforeRead();
+  try {
+    const response = await apiRequest(`/api/sync/${entity}`, 'GET', undefined, { entity });
+    if (typeof response.revision === 'number') {
+      syncRevisions[entity] = response.revision;
+    }
+    void cacheEntity(entity, response.data);
+    return response.data as T;
+  } catch (e) {
+    if (isOfflineError(e)) {
+      const cached = await readCachedEntity<T>(entity);
+      if (cached !== undefined) return cached;
+    }
+    throw e;
+  }
 }
 
 async function syncPost(entity: string, data: unknown): Promise<void> {
-  // Si aún no se conoce la revisión, se lee primero para no escribir a ciegas.
-  if (syncRevisions[entity] === undefined) {
-    await syncGet(entity);
+  // Espejo local optimista: la interfaz refleja el cambio aunque esté sin conexión.
+  await cacheEntity(entity, data);
+
+  if (!isOnline()) {
+    await enqueueOperation({
+      kind: 'sync',
+      entity,
+      data,
+      expectedRevision: syncRevisions[entity],
+    });
+    return;
   }
 
-  const response = await apiRequest(
-    `/api/sync/${entity}`,
-    'POST',
-    { data, expectedRevision: syncRevisions[entity] },
-    { entity }
-  );
+  // Si aún no se conoce la revisión, se lee primero para no escribir a ciegas.
+  if (syncRevisions[entity] === undefined) {
+    try {
+      await syncGet(entity);
+    } catch (e) {
+      if (!isOfflineError(e)) throw e;
+    }
+  }
 
-  if (typeof response.revision === 'number') {
-    syncRevisions[entity] = response.revision;
+  try {
+    const response = await apiRequest(
+      `/api/sync/${entity}`,
+      'POST',
+      { data, expectedRevision: syncRevisions[entity] },
+      { entity }
+    );
+    if (typeof response.revision === 'number') {
+      syncRevisions[entity] = response.revision;
+    }
+  } catch (e) {
+    if (isOfflineError(e)) {
+      await enqueueOperation({
+        kind: 'sync',
+        entity,
+        data,
+        expectedRevision: syncRevisions[entity],
+      });
+      return;
+    }
+    throw e;
+  }
+}
+
+// Acción que exige conexión (p. ej. transiciones SGC): mejor avisar que encolar
+// una operación cuyo resultado depende del estado actual del servidor.
+async function requireConnection(message: string, fn: () => Promise<void>): Promise<void> {
+  if (!isOnline()) throw new Error(message);
+  try {
+    await fn();
+  } catch (e) {
+    if (isOfflineError(e)) throw new Error(message, { cause: e });
+    throw e;
   }
 }
 
@@ -715,15 +849,56 @@ export const StorageService = {
 
   // --- Ciclo de vida SGC del acta ---
   async approveExecution(id: string): Promise<void> {
-    await apiRequest(`/api/executions/${encodeURIComponent(id)}/approve`, 'POST', {});
+    await requireConnection(
+      'Sin conexión: la aprobación del acta se realiza en línea. Vuelva a intentarlo al recuperar la conexión.',
+      () => apiRequest(`/api/executions/${encodeURIComponent(id)}/approve`, 'POST', {})
+    );
   },
 
   async closeExecution(id: string): Promise<void> {
-    await apiRequest(`/api/executions/${encodeURIComponent(id)}/close`, 'POST', {});
+    await requireConnection(
+      'Sin conexión: el cierre del acta se realiza en línea. Vuelva a intentarlo al recuperar la conexión.',
+      () => apiRequest(`/api/executions/${encodeURIComponent(id)}/close`, 'POST', {})
+    );
   },
 
   async reopenExecution(id: string): Promise<void> {
-    await apiRequest(`/api/executions/${encodeURIComponent(id)}/reopen`, 'POST', {});
+    await requireConnection(
+      'Sin conexión: la reapertura del acta se realiza en línea. Vuelva a intentarlo al recuperar la conexión.',
+      () => apiRequest(`/api/executions/${encodeURIComponent(id)}/reopen`, 'POST', {})
+    );
+  },
+
+  // --- Sincronización offline ---
+  /** Envía la cola de escrituras pendientes. Devuelve cuántas se enviaron y fallaron. */
+  async syncPendingOperations(): Promise<{ flushed: number; failed: number }> {
+    return await flushOutbox();
+  },
+
+  /** Operaciones pendientes de sincronizar (para mostrarlas en la interfaz). */
+  async getPendingOperations(): Promise<OutboxOperation[]> {
+    return await listOperations();
+  },
+
+  /** Descarta una operación pendiente o fallida de la cola. */
+  async discardPendingOperation(id: number): Promise<void> {
+    await deleteOperation(id);
+    notifyOutboxChange();
+  },
+
+  /** Se suscribe a los cambios de la cola pendiente. Devuelve la función para desuscribirse. */
+  subscribeToOutbox(listener: () => void): () => void {
+    return subscribeOutbox(listener);
+  },
+
+  /** Indica si hay conexión según el navegador. */
+  isOnline(): boolean {
+    return isOnline();
+  },
+
+  /** Borra el espejo local de datos (al cerrar sesión). */
+  async clearOfflineCache(): Promise<void> {
+    await clearCache();
   },
 
   // Guarda o actualiza un registro individual de ejecución (preventivo o correctivo)

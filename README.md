@@ -99,6 +99,7 @@ los datos reales.
 - `tests/concurrency.test.ts`: bloqueo optimista (409), sincronización no destructiva y copias.
 - `tests/audit.test.ts`: migraciones versionadas y bitácora de auditoría.
 - `tests/executions.test.ts`: ciclo de vida SGC de las actas (aprobar, cerrar, reabrir y bloqueo).
+- `tests/offline.test.ts`: espejo local, cola de escritura offline y sincronización al reconectar.
 - `tests/dates.test.ts`: fechas locales (sin desfase UTC) y días hábiles.
 - `tests/env.test.ts`: validación de variables de entorno.
 
@@ -189,6 +190,27 @@ acción, usuario, entidad y rango de fechas): `GET /api/audit` y `GET /api/audit
 - El endpoint de IA exige sesión y está limitado a 20 solicitudes por minuto.
 - `.env`, `uploads/`, `data/`, `backups/` y `logs/` están excluidos de Git.
 
+## Uso sin conexión (PWA + outbox)
+
+La aplicación es instalable y funciona de forma degradada sin conexión:
+
+- Un **service worker** (`public/sw.js`) cachea el _app shell_ (HTML y estáticos) para poder
+  abrir la interfaz aunque no haya red. Las peticiones `/api/` **no** se cachean ahí.
+- Los datos se guardan en un **espejo local en IndexedDB** (`src/services/offline.ts`): al leer,
+  si no hay conexión se devuelve la última copia conocida; al escribir, el cambio se refleja de
+  inmediato en local (optimista).
+- Las escrituras realizadas sin conexión se encolan en una **outbox** y se envían al servidor al
+  recuperar la conexión (o al pulsar _Sincronizar ahora_ en el panel lateral).
+- El indicador del panel lateral muestra el estado (en línea / sin conexión) y las operaciones
+  pendientes. Si una operación entra en conflicto con otro usuario (**409**), **no se sobreescribe
+  en silencio**: se marca como fallida para revisarla o descartarla.
+- Las **transiciones SGC** (aprobar / cerrar / reabrir) requieren conexión: dependen del estado
+  actual del acta en el servidor, por lo que no se encolan.
+- El service worker se registra **solo en producción** (no interfiere con el HMR en desarrollo).
+
+> Para que la instalación PWA funcione correctamente, sirva la aplicación por HTTPS (o
+> `http://localhost` durante las pruebas).
+
 ## Despliegue en Ubuntu con PM2
 
 El repositorio incluye `ecosystem.config.cjs` ya configurado (modo `fork`, `instances: 1`,
@@ -223,8 +245,10 @@ server/env.ts              Validación de variables de entorno
 server/sync.ts             Sincronización no destructiva y bloqueo optimista
 server/backup.ts           Copias de seguridad del archivo SQLite
 server/audit.ts            Bitácora de auditoría (trazabilidad SGC)
+public/                    Service worker, manifest e icono de la PWA
 src/db/                    Conexión Drizzle, esquema y migraciones versionadas
 src/services/              Acceso a datos, exportación, Excel, QR, OCR
+src/services/offline.ts    Espejo local (IndexedDB) y cola de escritura offline
 src/components/            Vistas y módulos de la interfaz
 ecosystem.config.cjs       Configuración de despliegue con PM2
 tests/                     Pruebas de API y de lógica pura

@@ -79,6 +79,16 @@ export default tseslint.config(
     },
   },
 
+  // Service Worker (public/sw.js): usa los globals del contexto service worker.
+  {
+    files: ['public/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.serviceworker, ...globals.browser },
+    },
+  },
+
   // Las heurísticas de OCR usan expresiones regulares muy densas: desactivar
   // no-useless-escape evita "correcciones" que alteren patrones deliberados.
   {

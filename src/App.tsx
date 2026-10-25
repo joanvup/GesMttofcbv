@@ -89,6 +89,9 @@ export default function App() {
     localStorage.removeItem('fcbv_user');
     setToken(null);
     setUser(null);
+    // La cola offline se conserva y se enviará al volver a iniciar sesión; solo
+    // se borra el espejo local de datos de la sesión que termina.
+    void StorageService.clearOfflineCache();
   };
 
   // Si cualquier llamada recibe 401, cerramos la sesión de forma centralizada
@@ -99,6 +102,7 @@ export default function App() {
       setToken(null);
       setUser(null);
       setLoadError(null);
+      void StorageService.clearOfflineCache();
     };
     window.addEventListener('fcbv:unauthorized', onUnauthorized);
     return () => window.removeEventListener('fcbv:unauthorized', onUnauthorized);
@@ -750,6 +754,7 @@ export default function App() {
         onLogout={handleLogout}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
+        onSyncPending={() => void loadData(selectedYear)}
       />
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
