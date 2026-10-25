@@ -62,7 +62,7 @@ export const QrService = {
           id: parsed.id || '',
           rawText: rawTrimmed,
         };
-      } catch (e) {
+      } catch {
         // Fallback a texto
       }
     }

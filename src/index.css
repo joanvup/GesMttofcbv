@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
@@ -17,7 +17,11 @@
       padding: 0 !important;
     }
 
-    .no-print, header, nav, footer, .print-hidden {
+    .no-print,
+    header,
+    nav,
+    footer,
+    .print-hidden {
       display: none !important;
     }
 

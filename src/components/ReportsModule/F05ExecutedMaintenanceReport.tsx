@@ -51,15 +51,10 @@ export const F05ExecutedMaintenanceReport: React.FC<F05ExecutedMaintenanceReport
     <div className="space-y-12 font-sans text-black">
       {equipments.map((eq) => {
         // Encontrar las ejecuciones de este equipo específico
-        const eqExecutions = executions.filter(
-          (ex) => ex.equipmentId === eq.id && ex.isExecuted
-        );
+        const eqExecutions = executions.filter((ex) => ex.equipmentId === eq.id && ex.isExecuted);
 
         // Generar las filas restantes en blanco hasta completar la hoja estándar
-        const remainingBlankRowsCount = Math.max(
-          1,
-          TOTAL_ROWS_PER_SHEET - eqExecutions.length
-        );
+        const remainingBlankRowsCount = Math.max(1, TOTAL_ROWS_PER_SHEET - eqExecutions.length);
         const blankRows = Array.from({ length: remainingBlankRowsCount });
 
         const displayName = `${eq.name} - ${eq.location || 'Campus General'}`;
@@ -83,20 +78,14 @@ export const F05ExecutedMaintenanceReport: React.FC<F05ExecutedMaintenanceReport
               {/* Sub-encabezado: Identificación del Equipo */}
               <div className="mt-4 border-2 border-black text-xs overflow-hidden">
                 <div className="grid grid-cols-12 bg-slate-200/80 font-bold border-b border-black text-left text-[11px]">
-                  <div className="col-span-3 py-1.5 px-3 border-r border-black uppercase">
-                    Código
-                  </div>
-                  <div className="col-span-9 py-1.5 px-3 uppercase">
-                    Nombre del Equipo
-                  </div>
+                  <div className="col-span-3 py-1.5 px-3 border-r border-black uppercase">Código</div>
+                  <div className="col-span-9 py-1.5 px-3 uppercase">Nombre del Equipo</div>
                 </div>
                 <div className="grid grid-cols-12 bg-white font-semibold text-xs min-h-[30px] items-center">
                   <div className="col-span-3 py-1.5 px-3 border-r border-black font-mono font-bold">
                     {eq.code}
                   </div>
-                  <div className="col-span-9 py-1.5 px-3 font-medium">
-                    {displayName}
-                  </div>
+                  <div className="col-span-9 py-1.5 px-3 font-medium">{displayName}</div>
                 </div>
               </div>
 
@@ -105,18 +94,12 @@ export const F05ExecutedMaintenanceReport: React.FC<F05ExecutedMaintenanceReport
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-200/80 font-bold border-b border-black text-[11px] text-center">
-                      <th className="py-1.5 px-2 border-r border-black w-28 uppercase">
-                        Fecha
-                      </th>
+                      <th className="py-1.5 px-2 border-r border-black w-28 uppercase">Fecha</th>
                       <th className="py-1.5 px-3 border-r border-black uppercase text-left">
                         Descripción del Mantenimiento
                       </th>
-                      <th className="py-1.5 px-2 border-r border-black w-36 uppercase">
-                        Firma Elaboró
-                      </th>
-                      <th className="py-1.5 px-2 w-36 uppercase">
-                        Firma Revisó
-                      </th>
+                      <th className="py-1.5 px-2 border-r border-black w-36 uppercase">Firma Elaboró</th>
+                      <th className="py-1.5 px-2 w-36 uppercase">Firma Revisó</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-black bg-white text-black">

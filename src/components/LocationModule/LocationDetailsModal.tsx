@@ -1,21 +1,15 @@
 import React from 'react';
-import { 
-  X, 
-  MapPin, 
-  Building2, 
-  Edit3, 
-  Server, 
-  CheckCircle2, 
-  AlertCircle,
+import {
+  X,
+  Edit3,
+  Server,
   FlaskConical,
   GraduationCap,
   Briefcase,
   Tv,
   Zap,
   HelpCircle,
-  Calendar,
-  Layers,
-  ArrowUpRight
+  ArrowUpRight,
 } from 'lucide-react';
 import { CampusLocation, Equipment, AreaType } from '../../types';
 
@@ -77,7 +71,9 @@ export const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
   if (!isOpen || !location) return null;
 
   const IconComponent = getAreaTypeIcon(location.areaType);
-  const locationEquipments = equipments.filter((eq) => eq.location.toLowerCase() === location.name.toLowerCase());
+  const locationEquipments = equipments.filter(
+    (eq) => eq.location.toLowerCase() === location.name.toLowerCase()
+  );
   const activeCount = locationEquipments.filter((eq) => eq.status === 'activo').length;
   const bajaCount = locationEquipments.filter((eq) => eq.status === 'baja').length;
 
@@ -105,9 +101,7 @@ export const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
                   {location.status === 'activa' ? 'Activa' : 'Inactiva'}
                 </span>
               </div>
-              <h3 className="text-lg font-bold text-slate-800 mt-1">
-                {location.name}
-              </h3>
+              <h3 className="text-lg font-bold text-slate-800 mt-1">{location.name}</h3>
             </div>
           </div>
           <button
@@ -197,9 +191,7 @@ export const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
                             {eq.brand} {eq.model && `• ${eq.model}`} {eq.serial && `• S/N: ${eq.serial}`}
                           </div>
                         </td>
-                        <td className="py-2.5 px-3 capitalize text-slate-600">
-                          {eq.frequency}
-                        </td>
+                        <td className="py-2.5 px-3 capitalize text-slate-600">{eq.frequency}</td>
                         <td className="py-2.5 px-3 text-center">
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
@@ -238,7 +230,8 @@ export const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
                   No hay equipos registrados actualmente en esta ubicación
                 </p>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  Al registrar o editar un equipo crítico, puede seleccionar "{location.name}" como su ubicación.
+                  Al registrar o editar un equipo crítico, puede seleccionar "{location.name}" como su
+                  ubicación.
                 </p>
               </div>
             )}
@@ -247,9 +240,7 @@ export const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
-          <span className="text-[11px] text-slate-400 font-mono">
-            ID: {location.id}
-          </span>
+          <span className="text-[11px] text-slate-400 font-mono">ID: {location.id}</span>
           <div className="flex items-center gap-2">
             <button
               type="button"

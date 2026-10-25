@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Eraser, Check, PenTool } from 'lucide-react';
+import { Eraser, PenTool } from 'lucide-react';
 
 interface SignaturePadProps {
   initialSignature?: string;
@@ -16,7 +16,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [hasDrawn, setHasDrawn] = useState(Boolean(initialSignature));
+  const [, setHasDrawn] = useState(Boolean(initialSignature));
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -27,7 +27,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
     const setupCanvas = () => {
       const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
-      const width = rect.width > 0 ? rect.width : (canvas.parentElement?.clientWidth || 400);
+      const width = rect.width > 0 ? rect.width : canvas.parentElement?.clientWidth || 400;
       const height = rect.height > 0 ? rect.height : 144;
 
       canvas.width = width * dpr;
@@ -76,9 +76,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
     }
   };
 
-  const startDrawing = (
-    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
-  ) => {
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     if ('touches' in e) {
       // Prevent scrolling when drawing on touch devices
       e.stopPropagation();
@@ -97,9 +95,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
     setHasDrawn(true);
   };
 
-  const draw = (
-    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
-  ) => {
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     if (!isDrawing) return;
     if ('touches' in e) {
       e.preventDefault();

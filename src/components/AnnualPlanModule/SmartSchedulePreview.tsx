@@ -1,20 +1,16 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  CalendarClock, 
-  MapPin, 
-  Clock, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Layers, 
-  Search, 
+import {
+  CalendarClock,
+  MapPin,
+  CheckCircle2,
+  AlertTriangle,
+  Search,
   CalendarDays,
   ArrowRight,
-  ShieldCheck,
   ChevronDown,
   ChevronUp,
-  Tag
 } from 'lucide-react';
-import { SmartScheduleResult, DailyScheduleSlot } from '../../services/scheduler';
+import { SmartScheduleResult } from '../../services/scheduler';
 
 interface SmartSchedulePreviewProps {
   smartSchedule: SmartScheduleResult;
@@ -44,8 +40,7 @@ export const SmartSchedulePreview: React.FC<SmartSchedulePreviewProps> = ({
       const matchLoc = slot.locationsSummary.some((l) => l.toLowerCase().includes(q));
       const matchEq = slot.equipments.some(
         (item) =>
-          item.equipment.code.toLowerCase().includes(q) ||
-          item.equipment.name.toLowerCase().includes(q)
+          item.equipment.code.toLowerCase().includes(q) || item.equipment.name.toLowerCase().includes(q)
       );
       return matchDay || matchLoc || matchEq;
     });
@@ -125,9 +120,13 @@ export const SmartSchedulePreview: React.FC<SmartSchedulePreviewProps> = ({
         </div>
 
         <div className="p-2.5 bg-white rounded-lg border border-slate-200 shadow-2xs">
-          <span className="text-[10px] uppercase font-bold text-slate-400 block">Intervenciones {selectedYear}</span>
+          <span className="text-[10px] uppercase font-bold text-slate-400 block">
+            Intervenciones {selectedYear}
+          </span>
           <div className="flex items-baseline gap-1.5 mt-0.5">
-            <span className="text-base font-black text-indigo-900 font-mono">{stats.totalInterventionsInYear}</span>
+            <span className="text-base font-black text-indigo-900 font-mono">
+              {stats.totalInterventionsInYear}
+            </span>
             <span className="text-[10px] text-slate-500">en el año</span>
           </div>
         </div>
@@ -142,9 +141,10 @@ export const SmartSchedulePreview: React.FC<SmartSchedulePreviewProps> = ({
               <span>Distribución Multimes por Capacidad Operativa</span>
               <p className="font-normal text-[11px] text-amber-800 mt-0.5">
                 Al asignar máximo <strong>{maxPerDay} equipos por día hábil</strong> (Lunes a Viernes), los{' '}
-                <strong>{stats.totalEquipments} equipos</strong> requieren <strong>{stats.totalDays} jornadas de trabajo</strong>. Como en{' '}
-                <strong>{startMonthName}</strong> no alcanzan todos los días hábiles disponibles sin saturar la jornada, la asignación
-                continúa automáticamente en el siguiente mes:
+                <strong>{stats.totalEquipments} equipos</strong> requieren{' '}
+                <strong>{stats.totalDays} jornadas de trabajo</strong>. Como en{' '}
+                <strong>{startMonthName}</strong> no alcanzan todos los días hábiles disponibles sin saturar
+                la jornada, la asignación continúa automáticamente en el siguiente mes:
               </p>
             </div>
           </div>
@@ -165,8 +165,9 @@ export const SmartSchedulePreview: React.FC<SmartSchedulePreviewProps> = ({
           </div>
 
           <div className="text-[10px] text-amber-800 bg-amber-100/50 p-2 rounded-lg">
-            💡 <em>Regla de negocio cumplida:</em> Los equipos asignados en el mes siguiente (ej. {stats.monthsImpacted[1]?.monthName})
-            inician su ciclo de mantenimiento en dicho mes, proyectando sus futuras fechas periódicas según su frecuencia.
+            💡 <em>Regla de negocio cumplida:</em> Los equipos asignados en el mes siguiente (ej.{' '}
+            {stats.monthsImpacted[1]?.monthName}) inician su ciclo de mantenimiento en dicho mes, proyectando
+            sus futuras fechas periódicas según su frecuencia.
           </div>
         </div>
       ) : (
@@ -176,8 +177,11 @@ export const SmartSchedulePreview: React.FC<SmartSchedulePreviewProps> = ({
             <span className="font-bold text-emerald-950">Capacidad Operativa Óptima</span>
             <p className="text-[11px] text-emerald-800 mt-0.5">
               Todos los <strong>{stats.totalEquipments} equipos</strong> se programan en{' '}
-              <strong>{startMonthName} {selectedYear}</strong> a lo largo de <strong>{stats.totalDays} jornadas de Lunes a Viernes</strong>{' '}
-              sin sobrepasar el límite de {maxPerDay} equipos diarios.
+              <strong>
+                {startMonthName} {selectedYear}
+              </strong>{' '}
+              a lo largo de <strong>{stats.totalDays} jornadas de Lunes a Viernes</strong> sin sobrepasar el
+              límite de {maxPerDay} equipos diarios.
             </p>
           </div>
         </div>
@@ -242,7 +246,9 @@ export const SmartSchedulePreview: React.FC<SmartSchedulePreviewProps> = ({
                   <div className="py-1.5 px-3 bg-gradient-to-r from-indigo-500 via-indigo-600 to-indigo-700 text-white rounded-lg flex items-center justify-between text-[11px] font-bold shadow-2xs my-2">
                     <div className="flex items-center gap-1.5">
                       <CalendarClock className="w-3.5 h-3.5 text-indigo-200" />
-                      <span>Transición automática: Continuación en {slot.monthName} {slot.year}</span>
+                      <span>
+                        Transición automática: Continuación en {slot.monthName} {slot.year}
+                      </span>
                     </div>
                     <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded font-mono">
                       Mes {slot.monthIndex + 1}
@@ -312,7 +318,9 @@ export const SmartSchedulePreview: React.FC<SmartSchedulePreviewProps> = ({
                               </span>
                               <div className="min-w-0">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="font-mono font-bold text-indigo-900">{equipment.code}</span>
+                                  <span className="font-mono font-bold text-indigo-900">
+                                    {equipment.code}
+                                  </span>
                                   <span className="text-[10px] px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-800 capitalize font-medium">
                                     {equipment.frequency}
                                   </span>

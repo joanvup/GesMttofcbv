@@ -1,18 +1,14 @@
 import React, { useState, useRef } from 'react';
-import { 
-  X, 
-  Upload, 
-  FileSpreadsheet, 
-  Download, 
-  CheckCircle, 
-  AlertCircle, 
+import {
+  X,
+  Upload,
+  FileSpreadsheet,
+  Download,
+  CheckCircle,
+  AlertCircle,
   ArrowRight,
-  MapPin,
-  Building2,
-  Layers,
-  HelpCircle,
   RefreshCw,
-  Info
+  Info,
 } from 'lucide-react';
 import { CampusLocation, AreaType } from '../../types';
 import { ExportService } from '../../services/exportService';
@@ -57,20 +53,49 @@ export const ExcelImportLocationModal: React.FC<ExcelImportLocationModalProps> =
 
   const normalizeAreaType = (val: any): AreaType => {
     if (!val) return 'otro';
-    const s = String(val).toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    if (s.includes('data') || s.includes('server') || s.includes('servidor') || s.includes('rack')) return 'datacenter';
-    if (s.includes('lab') || s.includes('computo') || s.includes('sistemas') || s.includes('informatica')) return 'laboratorio';
-    if (s.includes('aula') || s.includes('salon') || s.includes('clase') || s.includes('biblioteca') || s.includes('docente')) return 'aula';
-    if (s.includes('oficina') || s.includes('admin') || s.includes('coordinacion') || s.includes('rectoria') || s.includes('ti')) return 'oficina';
-    if (s.includes('auditorio') || s.includes('teatro') || s.includes('evento') || s.includes('coliseo')) return 'auditorio';
-    if (s.includes('infra') || s.includes('electr') || s.includes('red') || s.includes('planta') || s.includes('subestacion')) return 'infraestructura';
+    const s = String(val)
+      .toLowerCase()
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    if (s.includes('data') || s.includes('server') || s.includes('servidor') || s.includes('rack'))
+      return 'datacenter';
+    if (s.includes('lab') || s.includes('computo') || s.includes('sistemas') || s.includes('informatica'))
+      return 'laboratorio';
+    if (
+      s.includes('aula') ||
+      s.includes('salon') ||
+      s.includes('clase') ||
+      s.includes('biblioteca') ||
+      s.includes('docente')
+    )
+      return 'aula';
+    if (
+      s.includes('oficina') ||
+      s.includes('admin') ||
+      s.includes('coordinacion') ||
+      s.includes('rectoria') ||
+      s.includes('ti')
+    )
+      return 'oficina';
+    if (s.includes('auditorio') || s.includes('teatro') || s.includes('evento') || s.includes('coliseo'))
+      return 'auditorio';
+    if (
+      s.includes('infra') ||
+      s.includes('electr') ||
+      s.includes('red') ||
+      s.includes('planta') ||
+      s.includes('subestacion')
+    )
+      return 'infraestructura';
     return 'otro';
   };
 
   const normalizeStatus = (val: any): 'activa' | 'inactiva' => {
     if (!val) return 'activa';
     const s = String(val).toLowerCase().trim();
-    if (s.includes('inactiv') || s.includes('baja') || s.includes('desactiv') || s.includes('no')) return 'inactiva';
+    if (s.includes('inactiv') || s.includes('baja') || s.includes('desactiv') || s.includes('no'))
+      return 'inactiva';
     return 'activa';
   };
 
@@ -93,7 +118,10 @@ export const ExcelImportLocationModal: React.FC<ExcelImportLocationModalProps> =
       // Auto-detección inteligente de encabezados
       const findCol = (keywords: string[]): string => {
         for (const col of detectedCols) {
-          const lower = col.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          const lower = col
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
           if (keywords.some((k) => lower.includes(k))) {
             return col;
           }
@@ -134,9 +162,7 @@ export const ExcelImportLocationModal: React.FC<ExcelImportLocationModalProps> =
       const statusVal = mapping.status ? normalizeStatus(row[mapping.status]) : 'activa';
 
       // Verificar si ya existe por nombre
-      const existing = existingLocations.find(
-        (l) => l.name.toLowerCase().trim() === nameVal.toLowerCase()
-      );
+      const existing = existingLocations.find((l) => l.name.toLowerCase().trim() === nameVal.toLowerCase());
 
       const loc: CampusLocation = {
         id: existing ? existing.id : `loc_${Date.now()}_${index}`,
@@ -307,7 +333,12 @@ export const ExcelImportLocationModal: React.FC<ExcelImportLocationModalProps> =
                   Estructura recomendada del archivo Excel:
                 </div>
                 <p>
-                  El archivo debe contener columnas como: <strong className="text-slate-800">Nombre_Ubicacion</strong>, <strong className="text-slate-800">Edificio_Bloque</strong>, <strong className="text-slate-800">Tipo_Area</strong> (aula, laboratorio, datacenter, oficina, auditorio, infraestructura), <strong className="text-slate-800">Estado</strong> (activa/inactiva) y <strong className="text-slate-800">Descripcion</strong>.
+                  El archivo debe contener columnas como:{' '}
+                  <strong className="text-slate-800">Nombre_Ubicacion</strong>,{' '}
+                  <strong className="text-slate-800">Edificio_Bloque</strong>,{' '}
+                  <strong className="text-slate-800">Tipo_Area</strong> (aula, laboratorio, datacenter,
+                  oficina, auditorio, infraestructura), <strong className="text-slate-800">Estado</strong>{' '}
+                  (activa/inactiva) y <strong className="text-slate-800">Descripcion</strong>.
                 </p>
               </div>
             </div>
@@ -322,7 +353,8 @@ export const ExcelImportLocationModal: React.FC<ExcelImportLocationModalProps> =
                     Asignación de Columnas Detectadas
                   </h4>
                   <p className="text-xs text-slate-500">
-                    Archivo: <strong className="text-slate-700">{file?.name}</strong> ({rawRows.length} filas encontradas)
+                    Archivo: <strong className="text-slate-700">{file?.name}</strong> ({rawRows.length} filas
+                    encontradas)
                   </p>
                 </div>
                 <button
@@ -382,9 +414,7 @@ export const ExcelImportLocationModal: React.FC<ExcelImportLocationModalProps> =
 
                 {/* Tipo de Área */}
                 <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                  <label className="block font-semibold text-slate-800 mb-1">
-                    Tipo de Área o Categoría
-                  </label>
+                  <label className="block font-semibold text-slate-800 mb-1">Tipo de Área o Categoría</label>
                   <select
                     value={mapping.areaType}
                     onChange={(e) => setMapping({ ...mapping, areaType: e.target.value })}
@@ -464,9 +494,7 @@ export const ExcelImportLocationModal: React.FC<ExcelImportLocationModalProps> =
                     onChange={(e) => setUpdateExisting(e.target.checked)}
                     className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
                   />
-                  <span className="font-medium text-slate-800 text-xs">
-                    Actualizar información existente
-                  </span>
+                  <span className="font-medium text-slate-800 text-xs">Actualizar información existente</span>
                 </label>
               </div>
 
@@ -530,12 +558,8 @@ export const ExcelImportLocationModal: React.FC<ExcelImportLocationModalProps> =
                   <tbody className="divide-y divide-slate-100 font-mono">
                     {processedLocations.map(({ location, isExisting }, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/80">
-                        <td className="py-2 px-3 font-semibold text-slate-900 font-sans">
-                          {location.name}
-                        </td>
-                        <td className="py-2 px-3 text-slate-600 font-sans">
-                          {location.building}
-                        </td>
+                        <td className="py-2 px-3 font-semibold text-slate-900 font-sans">{location.name}</td>
+                        <td className="py-2 px-3 text-slate-600 font-sans">{location.building}</td>
                         <td className="py-2 px-3 font-sans">
                           <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 uppercase">
                             {location.areaType}

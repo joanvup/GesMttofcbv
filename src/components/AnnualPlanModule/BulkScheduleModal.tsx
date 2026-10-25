@@ -1,31 +1,22 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  CalendarClock, 
-  Check, 
-  X, 
-  Filter, 
-  AlertCircle, 
-  Calendar, 
-  Sparkles, 
-  Layers, 
-  CheckSquare, 
-  Square, 
+import {
+  CalendarClock,
+  Check,
+  X,
+  AlertCircle,
+  Calendar,
+  Sparkles,
+  Layers,
+  CheckSquare,
   RotateCcw,
   SlidersHorizontal,
   ChevronDown,
   ChevronUp,
-  Info,
-  Users,
   MapPin,
-  Clock,
-  ArrowRight,
-  ShieldCheck,
   CheckCircle2,
-  CalendarDays,
-  Hash
 } from 'lucide-react';
 import { Equipment, EquipmentFrequency } from '../../types';
-import { MONTH_SHORT_NAMES, MONTH_NAMES, getDefaultMonthsForFrequency } from '../../services/storage';
+import { MONTH_SHORT_NAMES, MONTH_NAMES } from '../../services/storage';
 import { calculateSmartSchedule, SmartScheduleResult } from '../../services/scheduler';
 import { SmartSchedulePreview } from './SmartSchedulePreview';
 
@@ -133,7 +124,7 @@ export const BulkScheduleModal: React.FC<BulkScheduleModalProps> = ({
   selectedYear,
   equipments,
   preSelectedEquipmentIds = [],
-  planMatrix,
+  planMatrix: _planMatrix,
   onApply,
   locations = [],
 }) => {
@@ -205,13 +196,15 @@ export const BulkScheduleModal: React.FC<BulkScheduleModalProps> = ({
     } else if (targetScope === 'all') {
       list = [...activeEquipments];
     } else if (targetScope === 'byLocation') {
-      list = selectedLocation === 'todas'
-        ? [...activeEquipments]
-        : activeEquipments.filter((eq) => eq.location === selectedLocation);
+      list =
+        selectedLocation === 'todas'
+          ? [...activeEquipments]
+          : activeEquipments.filter((eq) => eq.location === selectedLocation);
     } else if (targetScope === 'byFrequency') {
-      list = selectedFrequencyFilter === 'todas'
-        ? [...activeEquipments]
-        : activeEquipments.filter((eq) => eq.frequency === selectedFrequencyFilter);
+      list =
+        selectedFrequencyFilter === 'todas'
+          ? [...activeEquipments]
+          : activeEquipments.filter((eq) => eq.frequency === selectedFrequencyFilter);
     }
 
     // Filtrar opcionalmente por búsqueda rápida
@@ -444,8 +437,8 @@ export const BulkScheduleModal: React.FC<BulkScheduleModalProps> = ({
                   targetScope === 'selected'
                     ? 'bg-indigo-50 border-indigo-400 text-indigo-900 shadow-2xs'
                     : preSelectedEquipmentIds.length === 0
-                    ? 'bg-slate-100 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
-                    : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                      ? 'bg-slate-100 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
+                      : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -565,8 +558,14 @@ export const BulkScheduleModal: React.FC<BulkScheduleModalProps> = ({
                 onClick={() => setShowTargetList(!showTargetList)}
                 className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1"
               >
-                {showTargetList ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                {showTargetList ? 'Ocultar listado de equipos' : `Ver listado de los ${targetEquipments.length} equipos afectados`}
+                {showTargetList ? (
+                  <ChevronUp className="w-3.5 h-3.5" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5" />
+                )}
+                {showTargetList
+                  ? 'Ocultar listado de equipos'
+                  : `Ver listado de los ${targetEquipments.length} equipos afectados`}
               </button>
 
               {showTargetList && (
@@ -581,7 +580,10 @@ export const BulkScheduleModal: React.FC<BulkScheduleModalProps> = ({
                     />
                   </div>
                   {targetEquipments.map((eq) => (
-                    <div key={eq.id} className="flex items-center justify-between py-1 px-2 hover:bg-slate-50 rounded">
+                    <div
+                      key={eq.id}
+                      className="flex items-center justify-between py-1 px-2 hover:bg-slate-50 rounded"
+                    >
                       <div className="flex items-center gap-2 truncate">
                         <span className="font-mono font-bold text-slate-800 text-[11px] bg-slate-100 px-1.5 py-0.5 rounded">
                           {eq.code}
@@ -639,7 +641,9 @@ export const BulkScheduleModal: React.FC<BulkScheduleModalProps> = ({
               >
                 <Calendar className="w-4 h-4 mx-auto mb-1 text-indigo-600" />
                 <span className="text-xs block">Cadencia Predefinida</span>
-                <span className="text-[10px] text-slate-500 font-normal block mt-0.5">Trimestral, Mensual...</span>
+                <span className="text-[10px] text-slate-500 font-normal block mt-0.5">
+                  Trimestral, Mensual...
+                </span>
               </button>
 
               <button
@@ -686,7 +690,9 @@ export const BulkScheduleModal: React.FC<BulkScheduleModalProps> = ({
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-600 mb-2.5">
-                    Indica el mes donde comenzará la asignación de intervenciones. El sistema asignará fechas en días hábiles (Lunes a Viernes) y continuará en el siguiente mes si no alcanza la capacidad.
+                    Indica el mes donde comenzará la asignación de intervenciones. El sistema asignará fechas
+                    en días hábiles (Lunes a Viernes) y continuará en el siguiente mes si no alcanza la
+                    capacidad.
                   </p>
 
                   {/* Selector interactivo de los 12 meses */}
@@ -789,7 +795,8 @@ export const BulkScheduleModal: React.FC<BulkScheduleModalProps> = ({
                           Agrupar equipos por Ubicación física (Recomendado)
                         </span>
                         <p className="text-slate-500 text-[11px] mt-0.5">
-                          Ordena los equipos por laboratorio, datacenter o aula para que el técnico trabaje en un mismo espacio y minimice traslados.
+                          Ordena los equipos por laboratorio, datacenter o aula para que el técnico trabaje en
+                          un mismo espacio y minimice traslados.
                         </p>
                       </div>
                     </label>
@@ -807,7 +814,8 @@ export const BulkScheduleModal: React.FC<BulkScheduleModalProps> = ({
                           Sincronizar fechas exactas en el Registro de Ejecución
                         </span>
                         <p className="text-slate-500 text-[11px] mt-0.5">
-                          Fija el día exacto de cada intervención (ej. 2026-06-01) en las órdenes de mantenimiento preventivo.
+                          Fija el día exacto de cada intervención (ej. 2026-06-01) en las órdenes de
+                          mantenimiento preventivo.
                         </p>
                       </div>
                     </label>
@@ -879,7 +887,8 @@ export const BulkScheduleModal: React.FC<BulkScheduleModalProps> = ({
                       Actualizar también la frecuencia en la ficha de los equipos
                     </span>
                     <p className="text-slate-500 text-[11px] mt-0.5">
-                      Cambia la propiedad oficial del equipo (ej: a Trimestral o Semestral) en la base de datos
+                      Cambia la propiedad oficial del equipo (ej: a Trimestral o Semestral) en la base de
+                      datos
                     </p>
                   </div>
                   <input
@@ -895,7 +904,9 @@ export const BulkScheduleModal: React.FC<BulkScheduleModalProps> = ({
             {strategy === 'custom' && (
               <div className="space-y-3 bg-white p-4 border border-slate-200 rounded-xl">
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100 text-xs">
-                  <span className="font-semibold text-slate-700">Seleccione los meses del año {selectedYear}:</span>
+                  <span className="font-semibold text-slate-700">
+                    Seleccione los meses del año {selectedYear}:
+                  </span>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
@@ -970,12 +981,12 @@ export const BulkScheduleModal: React.FC<BulkScheduleModalProps> = ({
                         }`}
                       >
                         <span className="text-xs font-mono font-bold">{name}</span>
-                        <span className={`text-[10px] mt-0.5 ${isChecked ? 'text-indigo-100' : 'text-slate-400'}`}>
+                        <span
+                          className={`text-[10px] mt-0.5 ${isChecked ? 'text-indigo-100' : 'text-slate-400'}`}
+                        >
                           Mes {idx + 1}
                         </span>
-                        <span className="mt-1 font-mono font-black text-xs">
-                          {isChecked ? 'X' : '·'}
-                        </span>
+                        <span className="mt-1 font-mono font-black text-xs">{isChecked ? 'X' : '·'}</span>
                       </button>
                     );
                   })}
@@ -990,7 +1001,8 @@ export const BulkScheduleModal: React.FC<BulkScheduleModalProps> = ({
                   <span>Limpiar cronograma de los equipos seleccionados</span>
                 </div>
                 <p className="text-rose-700 text-[11px]">
-                  Se desmarcarán todos los 12 meses (marcas "X") en el año {selectedYear} para los {targetEquipments.length} equipos objetivo.
+                  Se desmarcarán todos los 12 meses (marcas "X") en el año {selectedYear} para los{' '}
+                  {targetEquipments.length} equipos objetivo.
                 </p>
               </div>
             )}
@@ -1070,7 +1082,10 @@ export const BulkScheduleModal: React.FC<BulkScheduleModalProps> = ({
               </div>
               <div className="col-span-2 sm:col-span-1">
                 <span className="text-slate-400 text-[11px] block">Meses involucrados:</span>
-                <span className="text-xs font-semibold text-slate-200 truncate block" title={projectedStats.monthsSummary}>
+                <span
+                  className="text-xs font-semibold text-slate-200 truncate block"
+                  title={projectedStats.monthsSummary}
+                >
                   {projectedStats.monthsSummary}
                 </span>
               </div>

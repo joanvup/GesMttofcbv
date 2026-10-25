@@ -5,11 +5,11 @@ export const users = sqliteTable('users', {
   username: text('username').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
   name: text('name').notNull(),
-  role: text('role').notNull()
+  role: text('role').notNull(),
 });
 
 export const buildings = sqliteTable('buildings', {
-  name: text('name').primaryKey()
+  name: text('name').primaryKey(),
 });
 
 export const locations = sqliteTable('locations', {
@@ -20,7 +20,7 @@ export const locations = sqliteTable('locations', {
   description: text('description'),
   status: text('status').notNull(),
   createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull()
+  updatedAt: text('updated_at').notNull(),
 });
 
 export const equipments = sqliteTable('equipments', {
@@ -38,14 +38,14 @@ export const equipments = sqliteTable('equipments', {
   status: text('status').notNull(),
   observations: text('observations'),
   createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull()
+  updatedAt: text('updated_at').notNull(),
 });
 
 export const annualPlans = sqliteTable('annual_plans', {
   id: text('id').primaryKey(),
   equipmentId: text('equipment_id').notNull(),
   year: integer('year').notNull(),
-  schedules: text('schedules').notNull() // JSON string array of 12 booleans
+  schedules: text('schedules').notNull(), // JSON string array of 12 booleans
 });
 
 export const executions = sqliteTable('executions', {
@@ -68,10 +68,20 @@ export const executions = sqliteTable('executions', {
   downtimeHours: integer('downtime_hours'),
   finalOperationalStatus: text('final_operational_status'),
   createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull()
+  updatedAt: text('updated_at').notNull(),
 });
 
 export const settings = sqliteTable('settings', {
   key: text('key').primaryKey(),
-  value: text('value').notNull()
+  value: text('value').notNull(),
+});
+
+// Revisión por entidad sincronizada: base del bloqueo optimista.
+// Cada escritura incrementa el contador y el cliente debe enviar la revisión
+// que leyó; si no coincide, la API responde 409 en lugar de sobrescribir.
+export const entityRevisions = sqliteTable('entity_revisions', {
+  entity: text('entity').primaryKey(),
+  revision: integer('revision').notNull().default(0),
+  updatedAt: text('updated_at').notNull(),
+  updatedBy: text('updated_by'),
 });

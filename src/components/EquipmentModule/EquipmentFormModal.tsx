@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Server, Wrench, Layers, HelpCircle, Check, MapPin, ScanLine } from 'lucide-react';
+import { X, Plus, Trash2, Server, Wrench, Layers, Check, MapPin, ScanLine } from 'lucide-react';
 import { Equipment, EquipmentFrequency, EquipmentStatus, CampusLocation } from '../../types';
 import { MONTH_SHORT_NAMES } from '../../services/storage';
 
@@ -178,9 +178,7 @@ export const EquipmentFormModal: React.FC<EquipmentFormModalProps> = ({
               <Server className="w-5 h-5 text-indigo-600" />
               {initialEquipment ? 'Editar Equipo Crítico' : 'Registrar Nuevo Equipo Crítico'}
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Sistema de Mantenimiento Preventivo FCBV
-            </p>
+            <p className="text-xs text-slate-500 mt-0.5">Sistema de Mantenimiento Preventivo FCBV</p>
           </div>
           <div className="flex items-center gap-2">
             {onOpenScanner && (
@@ -601,7 +599,9 @@ export const EquipmentFormModal: React.FC<EquipmentFormModalProps> = ({
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-slate-400 italic">No se han registrado tareas de mantenimiento aún.</p>
+              <p className="text-xs text-slate-400 italic">
+                No se han registrado tareas de mantenimiento aún.
+              </p>
             )}
           </div>
 

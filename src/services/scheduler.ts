@@ -1,5 +1,5 @@
 import { Equipment, EquipmentFrequency } from '../types';
-import { MONTH_NAMES, MONTH_SHORT_NAMES } from './storage';
+import { MONTH_NAMES } from './storage';
 
 export interface DailyScheduleSlot {
   dayIndex: number; // 1, 2, 3...
@@ -94,7 +94,11 @@ export function formatReadableDate(date: Date): string {
 }
 
 // Obtiene el primer día hábil de un mes
-export function getFirstWorkingDayOfMonth(year: number, monthIndex: number, includeSaturdays: boolean = false): number {
+export function getFirstWorkingDayOfMonth(
+  year: number,
+  monthIndex: number,
+  includeSaturdays: boolean = false
+): number {
   for (let day = 1; day <= 31; day++) {
     const d = new Date(year, monthIndex, day);
     if (d.getMonth() !== monthIndex) break;
@@ -149,13 +153,7 @@ export function calculateSmartSchedule(
   equipments: Equipment[],
   options: SmartScheduleOptions
 ): SmartScheduleResult {
-  const {
-    year,
-    startMonthIndex,
-    maxPerDay = 6,
-    includeSaturdays = false,
-    groupByLocation = true,
-  } = options;
+  const { year, startMonthIndex, maxPerDay = 6, includeSaturdays = false, groupByLocation = true } = options;
 
   if (equipments.length === 0) {
     return {
@@ -176,9 +174,10 @@ export function calculateSmartSchedule(
   }
 
   // 1. Determinar el día de inicio
-  const startDay = options.startDay !== undefined && options.startDay >= 1
-    ? options.startDay
-    : getFirstWorkingDayOfMonth(year, startMonthIndex, includeSaturdays);
+  const startDay =
+    options.startDay !== undefined && options.startDay >= 1
+      ? options.startDay
+      : getFirstWorkingDayOfMonth(year, startMonthIndex, includeSaturdays);
 
   // 2. Ordenar equipos por ubicación y luego por código
   const sortedEquipments = [...equipments].sort((a, b) => {
@@ -190,7 +189,7 @@ export function calculateSmartSchedule(
   });
 
   // 3. Generador de días hábiles continuos
-  let currentDate = new Date(year, startMonthIndex, startDay);
+  const currentDate = new Date(year, startMonthIndex, startDay);
   // Asegurar que comience en día hábil
   while (!isWorkingDay(currentDate, includeSaturdays)) {
     currentDate.setDate(currentDate.getDate() + 1);

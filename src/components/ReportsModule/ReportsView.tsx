@@ -3,18 +3,12 @@ import {
   FileText,
   Printer,
   Download,
-  Filter,
   Search,
   CheckCircle2,
   Calendar,
   Layers,
-  Sparkles,
   Server,
-  Building2,
-  MapPin,
-  Eye,
-  SlidersHorizontal,
-  Info
+  Info,
 } from 'lucide-react';
 import { Equipment, MaintenanceExecution, CampusLocation } from '../../types';
 import { F01EquipmentListReport } from './F01EquipmentListReport';
@@ -45,7 +39,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   executions,
   selectedYear,
   onYearChange,
-  locations,
+  locations: _locations,
   technicianSignature,
   initialFormat = 'F01',
   initialEquipmentId = 'todos',
@@ -135,7 +129,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             Generador de Reportes Oficiales
           </h2>
           <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
-            Formatos institucionales homologados bajo la norma PA-03 (Versión 3, Vigencia 18-09-24) de la Fundación Colegio Bilingüe de Valledupar. Listos para impresión en papel membretado, guardado en PDF o exportación a Excel.
+            Formatos institucionales homologados bajo la norma PA-03 (Versión 3, Vigencia 18-09-24) de la
+            Fundación Colegio Bilingüe de Valledupar. Listos para impresión en papel membretado, guardado en
+            PDF o exportación a Excel.
           </p>
         </div>
 
@@ -196,9 +192,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               <span className="text-xs font-bold text-slate-900 block truncate">
                 Listado Equipos Críticos
               </span>
-              <span className="text-[10px] text-slate-400 block mt-0.5">
-                Censo institucional tabular
-              </span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">Censo institucional tabular</span>
             </div>
           </button>
 
@@ -258,9 +252,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               <span className="text-[10px] font-mono font-bold uppercase tracking-wider block text-indigo-600">
                 PA – 03 – F03
               </span>
-              <span className="text-xs font-bold text-slate-900 block truncate">
-                Programación de Mttos
-              </span>
+              <span className="text-xs font-bold text-slate-900 block truncate">Programación de Mttos</span>
               <span className="text-[10px] text-slate-400 block mt-0.5">
                 Matriz anual preventiva de 12 meses
               </span>
@@ -382,7 +374,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         <div className="text-[11px] text-slate-500 flex items-center gap-1.5">
           <Info className="w-3.5 h-3.5 text-indigo-600" />
           <span>
-            Generando reporte para <strong>{filteredEquipments.length}</strong> de <strong>{equipments.length}</strong> equipos.
+            Generando reporte para <strong>{filteredEquipments.length}</strong> de{' '}
+            <strong>{equipments.length}</strong> equipos.
           </span>
         </div>
       </div>
@@ -395,13 +388,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
       {/* Contenedor del Documento Oficial (Área de Impresión) */}
       <div id="app-printable-report" className="w-full">
-        {selectedFormat === 'F01' && (
-          <F01EquipmentListReport equipments={filteredEquipments} />
-        )}
+        {selectedFormat === 'F01' && <F01EquipmentListReport equipments={filteredEquipments} />}
 
-        {selectedFormat === 'F02' && (
-          <F02TechnicalSheetReport equipments={filteredEquipments} />
-        )}
+        {selectedFormat === 'F02' && <F02TechnicalSheetReport equipments={filteredEquipments} />}
 
         {selectedFormat === 'F03' && (
           <F03MaintenanceScheduleReport

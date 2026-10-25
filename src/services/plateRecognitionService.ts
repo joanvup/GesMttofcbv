@@ -268,14 +268,16 @@ export function cleanAlphanumericValue(
   text = text.replace(/^[:;=\-_~|·•#/\\[\](){}\s]+/, '').trim();
 
   // 2. Cortar si en la misma línea aparece otra etiqueta o término de corte
-  const stopDelimiterPattern = /\b(?:input|output|rating|voltage|power|mac|lan|wifi|fcc|ce|rohs|made\s*in|date|fecha|p\/n|pn|batch|lote|service|support|designed|assembled|sn|s\/n|serial|model|modelo|brand|marca|item|product|part)\b.*$/i;
+  const stopDelimiterPattern =
+    /\b(?:input|output|rating|voltage|power|mac|lan|wifi|fcc|ce|rohs|made\s*in|date|fecha|p\/n|pn|batch|lote|service|support|designed|assembled|sn|s\/n|serial|model|modelo|brand|marca|item|product|part)\b.*$/i;
   text = text.replace(stopDelimiterPattern, '').trim();
 
   // 3. Cortar por salto de línea
   text = text.split(/[\r\n]+/)[0].trim();
 
   // Palabras comunes de relleno en placas que NO corresponden a un código válido
-  const noiseWordRegex = /^(made|in|china|taiwan|mexico|usa|vietnam|input|output|rating|voltage|power|hz|volt|amp|ce|rohs|fcc|weee|ukca|nom|ul|eac|model|modelo|brand|marca|serial|serie|number|numero|code|item|part|sn|sn:|s\/n|mac|date|type|tipo)$/i;
+  const noiseWordRegex =
+    /^(made|in|china|taiwan|mexico|usa|vietnam|input|output|rating|voltage|power|hz|volt|amp|ce|rohs|fcc|weee|ukca|nom|ul|eac|model|modelo|brand|marca|serial|serie|number|numero|code|item|part|sn|sn:|s\/n|mac|date|type|tipo)$/i;
 
   if (allowSpaces && maxWords > 1) {
     const rawWords = text.split(/\s+/).filter(Boolean);
@@ -371,14 +373,23 @@ export function extractBrandFromLabelText(text: string, rawText: string): string
     { name: 'SonicWall', regex: /\b(sonicwall|tz\d+)\b/i },
     { name: 'WatchGuard', regex: /\b(watchguard|firebox)\b/i },
     { name: 'Huawei', regex: /\b(huawei|quidway|echolife)\b/i },
-    { name: 'APC', regex: /\b(apc(?:\s*by\s*schneider)?|schneider\s*electric|smart-?ups|back-?ups|surt\d+|smt\d+)\b/i },
+    {
+      name: 'APC',
+      regex: /\b(apc(?:\s*by\s*schneider)?|schneider\s*electric|smart-?ups|back-?ups|surt\d+|smt\d+)\b/i,
+    },
     { name: 'Tripp Lite', regex: /\b(tripp\s*lite|smartpro|omnisvs)\b/i },
     { name: 'Forza', regex: /\b(forza(?:\s*power)?|nt-\d+|sl-\d+)\b/i },
     { name: 'CyberPower', regex: /\b(cyberpower)\b/i },
     { name: 'Eaton', regex: /\b(eaton|powerware)\b/i },
     { name: 'Vertiv', regex: /\b(vertiv|liebert)\b/i },
-    { name: 'Dell', regex: /\b(dell(?:\s*inc\.?)?|poweredge|optiplex|precision|wyse|latitude|inspiron|alienware)\b/i },
-    { name: 'HP', regex: /\b(hp|hewlett[\s-]*packard|hpe|proliant|prodesk|elitedesk|z2|zbook|laserjet|probook)\b/i },
+    {
+      name: 'Dell',
+      regex: /\b(dell(?:\s*inc\.?)?|poweredge|optiplex|precision|wyse|latitude|inspiron|alienware)\b/i,
+    },
+    {
+      name: 'HP',
+      regex: /\b(hp|hewlett[\s-]*packard|hpe|proliant|prodesk|elitedesk|z2|zbook|laserjet|probook)\b/i,
+    },
     { name: 'Lenovo', regex: /\b(lenovo|thinkcentre|thinksystem|thinkpad|ideacentre|system\s*x)\b/i },
     { name: 'IBM', regex: /\b(ibm|bladecenter)\b/i },
     { name: 'ASUS', regex: /\b(asus|asustek|vivomini|expertcenter|rog)\b/i },
@@ -424,7 +435,10 @@ export function extractBrandFromLabelText(text: string, rawText: string): string
   }
 
   // 3. Buscar en las 3 primeras líneas de la placa
-  const lines = rawText.split('\n').map((l) => l.trim()).filter((l) => l.length > 2);
+  const lines = rawText
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 2);
   for (let i = 0; i < Math.min(3, lines.length); i++) {
     for (const b of brands) {
       if (b.regex.test(lines[i])) {
@@ -477,55 +491,73 @@ export function extractModelFromLabelText(text: string, rawText: string): string
   }
 
   // Mini PCs / NUCs
-  const miniPcMatch = text.match(/\b(EQ\d+|SEi\d+|Mini\s*S\d*|GK\d+|U59|NAB\d+|UM\d+|EM\d+|NPB\d+|NUC\d+[A-Za-z0-9\-]*)\b/i);
+  const miniPcMatch = text.match(
+    /\b(EQ\d+|SEi\d+|Mini\s*S\d*|GK\d+|U59|NAB\d+|UM\d+|EM\d+|NPB\d+|NUC\d+[A-Za-z0-9\-]*)\b/i
+  );
   if (miniPcMatch) {
     return cleanAlphanumericValue(miniPcMatch[1], { allowHyphens: true });
   }
 
   // Cisco Catalyst / Switches / Routers
-  const wsMatch = text.match(/\b(WS-C\d+[A-Za-z0-9\-]+|C9\d{3}[A-Za-z0-9\-]*|SG\d{3}-[A-Za-z0-9\-]+|CBS\d{3}-[A-Za-z0-9\-]+|ISR\d{4}|AIR-[A-Za-z0-9\-]+)\b/i);
+  const wsMatch = text.match(
+    /\b(WS-C\d+[A-Za-z0-9\-]+|C9\d{3}[A-Za-z0-9\-]*|SG\d{3}-[A-Za-z0-9\-]+|CBS\d{3}-[A-Za-z0-9\-]+|ISR\d{4}|AIR-[A-Za-z0-9\-]+)\b/i
+  );
   if (wsMatch) {
     return cleanAlphanumericValue(wsMatch[1], { allowHyphens: true });
   }
 
   // D-Link
-  const dirMatch = text.match(/\b(DIR-\d+[A-Za-z0-9]*|DES-\d+[A-Za-z0-9]*|DGS-\d+[A-Za-z0-9]*|DAP-\d+[A-Za-z0-9]*|DWR-\d+[A-Za-z0-9]*)\b/i);
+  const dirMatch = text.match(
+    /\b(DIR-\d+[A-Za-z0-9]*|DES-\d+[A-Za-z0-9]*|DGS-\d+[A-Za-z0-9]*|DAP-\d+[A-Za-z0-9]*|DWR-\d+[A-Za-z0-9]*)\b/i
+  );
   if (dirMatch) {
     return cleanAlphanumericValue(dirMatch[1], { allowHyphens: true });
   }
 
   // TP-Link
-  const tplinkMatch = text.match(/\b(Archer\s+[A-Za-z0-9]+|TL-[A-Za-z0-9\-]+|Deco\s+[A-Za-z0-9]+|EAP\d+[A-Za-z0-9\-]*|Omada\s+[A-Za-z0-9]+)\b/i);
+  const tplinkMatch = text.match(
+    /\b(Archer\s+[A-Za-z0-9]+|TL-[A-Za-z0-9\-]+|Deco\s+[A-Za-z0-9]+|EAP\d+[A-Za-z0-9\-]*|Omada\s+[A-Za-z0-9]+)\b/i
+  );
   if (tplinkMatch) {
     return cleanAlphanumericValue(tplinkMatch[1], { allowHyphens: true, allowSpaces: true, maxWords: 2 });
   }
 
   // Ubiquiti
-  const u6Match = text.match(/\b(U6-(?:Pro|Lite|LR|Mesh|Enterprise|Plus)|UAP-[A-Za-z0-9\-]+|USW-[A-Za-z0-9\-]+|ER-[A-Za-z0-9\-]+|UDM-[A-Za-z0-9\-]+|NanoStation\s*[A-Za-z0-9\-]+|Rocket\s*[A-Za-z0-9\-]+)\b/i);
+  const u6Match = text.match(
+    /\b(U6-(?:Pro|Lite|LR|Mesh|Enterprise|Plus)|UAP-[A-Za-z0-9\-]+|USW-[A-Za-z0-9\-]+|ER-[A-Za-z0-9\-]+|UDM-[A-Za-z0-9\-]+|NanoStation\s*[A-Za-z0-9\-]+|Rocket\s*[A-Za-z0-9\-]+)\b/i
+  );
   if (u6Match) {
     return cleanAlphanumericValue(u6Match[1], { allowHyphens: true });
   }
 
   // Dell
-  const optiMatch = text.match(/\b(OptiPlex\s*\d+[A-Za-z0-9]*|PowerEdge\s*[A-Za-z0-9]+|Latitude\s*\d+[A-Za-z0-9]*|Precision\s*\d+[A-Za-z0-9]*|Wyse\s*\d+[A-Za-z0-9]*)\b/i);
+  const optiMatch = text.match(
+    /\b(OptiPlex\s*\d+[A-Za-z0-9]*|PowerEdge\s*[A-Za-z0-9]+|Latitude\s*\d+[A-Za-z0-9]*|Precision\s*\d+[A-Za-z0-9]*|Wyse\s*\d+[A-Za-z0-9]*)\b/i
+  );
   if (optiMatch) {
     return cleanAlphanumericValue(optiMatch[1], { allowHyphens: true, allowSpaces: true, maxWords: 2 });
   }
 
   // HP
-  const hpMatch = text.match(/\b(ProDesk\s*\d+[A-Za-z0-9]*|EliteDesk\s*\d+[A-Za-z0-9]*|ProLiant\s*[A-Za-z0-9\-]+|LaserJet\s*[A-Za-z0-9\-]+|ZBook\s*[A-Za-z0-9\-]+|ProBook\s*[A-Za-z0-9\-]+)\b/i);
+  const hpMatch = text.match(
+    /\b(ProDesk\s*\d+[A-Za-z0-9]*|EliteDesk\s*\d+[A-Za-z0-9]*|ProLiant\s*[A-Za-z0-9\-]+|LaserJet\s*[A-Za-z0-9\-]+|ZBook\s*[A-Za-z0-9\-]+|ProBook\s*[A-Za-z0-9\-]+)\b/i
+  );
   if (hpMatch) {
     return cleanAlphanumericValue(hpMatch[1], { allowHyphens: true, allowSpaces: true, maxWords: 2 });
   }
 
   // Lenovo
-  const lenovoMatch = text.match(/\b(ThinkCentre\s*[A-Za-z0-9\-]+|ThinkSystem\s*[A-Za-z0-9\-]+|ThinkPad\s*[A-Za-z0-9\-]+|IdeaCentre\s*[A-Za-z0-9\-]+)\b/i);
+  const lenovoMatch = text.match(
+    /\b(ThinkCentre\s*[A-Za-z0-9\-]+|ThinkSystem\s*[A-Za-z0-9\-]+|ThinkPad\s*[A-Za-z0-9\-]+|IdeaCentre\s*[A-Za-z0-9\-]+)\b/i
+  );
   if (lenovoMatch) {
     return cleanAlphanumericValue(lenovoMatch[1], { allowHyphens: true, allowSpaces: true, maxWords: 2 });
   }
 
   // APC
-  const smartUpsMatch = text.match(/\b(Smart-?UPS\s*[A-Za-z0-9\-]+|Back-?UPS\s*[A-Za-z0-9\-]+|SURT\d+[A-Za-z0-9\-]*|SMT\d+[A-Za-z0-9\-]*)\b/i);
+  const smartUpsMatch = text.match(
+    /\b(Smart-?UPS\s*[A-Za-z0-9\-]+|Back-?UPS\s*[A-Za-z0-9\-]+|SURT\d+[A-Za-z0-9\-]*|SMT\d+[A-Za-z0-9\-]*)\b/i
+  );
   if (smartUpsMatch) {
     return cleanAlphanumericValue(smartUpsMatch[1], { allowHyphens: true, allowSpaces: true, maxWords: 2 });
   }
@@ -537,7 +569,7 @@ export function extractModelFromLabelText(text: string, rawText: string): string
  * Extrae y limpia específicamente el campo 'Serial:' / 'S/N:' a partir del texto OCR.
  * Extrae estrictamente la secuencia alfanumérica sin espacios ni ruido.
  */
-export function extractSerialFromLabelText(text: string, rawText: string): string {
+export function extractSerialFromLabelText(text: string, _rawText: string): string {
   // 1. Patrones directos de etiqueta "Serial:" / "S/N:" / "SN:" / "Serie:" / "No. Serie:"
   const directPatterns = [
     /(?:^|\s|\b)(?:serial(?:\s*no\.?|\s*number|\s*#)?|s[\/.]?n|sn|serie|no\.?\s*serie|n\/s|service\s*tag|st|serial\s*num)\s*[:=;\-.]+\s*([A-Za-z0-9\-._/]{4,45})/i,
@@ -612,20 +644,24 @@ export function extractTechnicalFieldsFromText(rawText: string): PlateOcrResult 
   // Extracciones específicas con limpieza estricta de valores alfanuméricos
   let detectedBrand = extractBrandFromLabelText(text, originalText);
   let detectedModel = extractModelFromLabelText(text, originalText);
-  let detectedSerial = extractSerialFromLabelText(text, originalText);
+  const detectedSerial = extractSerialFromLabelText(text, originalText);
   let detectedMac = '';
   let detectedCode = '';
   let deviceType = '';
   const specs: string[] = [];
 
   // Detección de Código de Activo Fijo / Placa Institucional si está en el texto
-  const assetCodeMatch = text.match(/(?:activo(?:\s*fijo)?|c[oó]digo|placa|id\s*equipo)[:\s]*([A-Za-z0-9\-]+)/i);
+  const assetCodeMatch = text.match(
+    /(?:activo(?:\s*fijo)?|c[oó]digo|placa|id\s*equipo)[:\s]*([A-Za-z0-9\-]+)/i
+  );
   if (assetCodeMatch) {
     detectedCode = cleanAlphanumericValue(assetCodeMatch[1], { allowHyphens: true });
   }
 
   // Detección de MAC Address
-  const macMatch = text.match(/(?:mac(?:\s*id|\s*address)?|lan\s*mac)[:\s]*([0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}|[0-9A-Fa-f]{12})/i);
+  const macMatch = text.match(
+    /(?:mac(?:\s*id|\s*address)?|lan\s*mac)[:\s]*([0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}|[0-9A-Fa-f]{12})/i
+  );
   if (macMatch) {
     detectedMac = macMatch[1].trim();
     specs.push(`MAC: ${detectedMac}`);
@@ -634,12 +670,18 @@ export function extractTechnicalFieldsFromText(rawText: string): PlateOcrResult 
   // Detección de Part Number (P/N)
   const pnMatch = text.match(/(?:p\/n|part(?:\s*no|\s*number)?|pn)[:\s]*([A-Za-z0-9\-._/]+)/i);
   if (pnMatch) {
-    const cleanPn = cleanAlphanumericValue(pnMatch[1], { allowHyphens: true, allowDots: true, allowSlashes: true });
+    const cleanPn = cleanAlphanumericValue(pnMatch[1], {
+      allowHyphens: true,
+      allowDots: true,
+      allowSlashes: true,
+    });
     if (cleanPn) specs.push(`P/N: ${cleanPn}`);
   }
 
   // Código de configuración completa (ej: SER5 PRO-E-16500EJ0W64PRO-DP/XB)
-  const partFullMatch = originalText.match(/\b(SER\d+\s*PRO-[A-Za-z0-9\-/_]+)\b/i) || text.match(/\b(SER\d+\s*PRO-[A-Za-z0-9\-/_]+)\b/i);
+  const partFullMatch =
+    originalText.match(/\b(SER\d+\s*PRO-[A-Za-z0-9\-/_]+)\b/i) ||
+    text.match(/\b(SER\d+\s*PRO-[A-Za-z0-9\-/_]+)\b/i);
   if (partFullMatch) {
     specs.push(`P/N Config: ${partFullMatch[1].trim()}`);
     if (!detectedModel || detectedModel === 'SER') {
@@ -650,7 +692,9 @@ export function extractTechnicalFieldsFromText(rawText: string): PlateOcrResult 
   }
 
   // Especificaciones Eléctricas (Input / Entrada / Rating)
-  const inputMatch = text.match(/(?:input|entrada|rating|alimentaci[oó]n|power)[:\s]*([0-9\.\-]+\s*(?:V|VAC|VDC|V~)?\s*(?:(?:={1,3}|[~⎓\/\-]|x|\b(?:AC|DC)\b)\s*)?[0-9\.\-]+\s*(?:A|mA|W|VA|Hz|V)?(?:\s*,?\s*[0-9\.\-]+\s*Hz)?(?:\s*,?\s*[0-9\.\-]+\s*W)?)/i);
+  const inputMatch = text.match(
+    /(?:input|entrada|rating|alimentaci[oó]n|power)[:\s]*([0-9\.\-]+\s*(?:V|VAC|VDC|V~)?\s*(?:(?:={1,3}|[~⎓\/\-]|x|\b(?:AC|DC)\b)\s*)?[0-9\.\-]+\s*(?:A|mA|W|VA|Hz|V)?(?:\s*,?\s*[0-9\.\-]+\s*Hz)?(?:\s*,?\s*[0-9\.\-]+\s*W)?)/i
+  );
   if (inputMatch) {
     specs.push(`Alimentación: ${inputMatch[1].trim()}`);
   }
@@ -666,7 +710,9 @@ export function extractTechnicalFieldsFromText(rawText: string): PlateOcrResult 
     const cleanFw = cleanAlphanumericValue(fwMatch[1], { allowHyphens: true, allowDots: true });
     if (cleanFw) specs.push(`F/W: ${cleanFw}`);
   }
-  const batchMatch = originalText.match(/\b(\d{2}\.\d{8,14}[A-Za-z0-9]+)\b/) || text.match(/\b(\d{2}\.\d{8,14}[A-Za-z0-9]+)\b/);
+  const batchMatch =
+    originalText.match(/\b(\d{2}\.\d{8,14}[A-Za-z0-9]+)\b/) ||
+    text.match(/\b(\d{2}\.\d{8,14}[A-Za-z0-9]+)\b/);
   if (batchMatch) {
     specs.push(`Lote/Rev: ${batchMatch[1].trim()}`);
   }
@@ -685,26 +731,70 @@ export function extractTechnicalFieldsFromText(rawText: string): PlateOcrResult 
   ) {
     deviceType = 'Mini PC / Computador Compacto';
   } else if (
-    lowerBrand.includes('dell') && (lowerModel.includes('optiplex') || lowerModel.includes('precision') || lowerModel.includes('latitude')) ||
-    lowerBrand.includes('hp') && (lowerModel.includes('prodesk') || lowerModel.includes('elitedesk')) ||
-    lowerBrand.includes('lenovo') && (lowerModel.includes('thinkcentre') || lowerModel.includes('thinkpad'))
+    (lowerBrand.includes('dell') &&
+      (lowerModel.includes('optiplex') ||
+        lowerModel.includes('precision') ||
+        lowerModel.includes('latitude'))) ||
+    (lowerBrand.includes('hp') && (lowerModel.includes('prodesk') || lowerModel.includes('elitedesk'))) ||
+    (lowerBrand.includes('lenovo') && (lowerModel.includes('thinkcentre') || lowerModel.includes('thinkpad')))
   ) {
     deviceType = 'Computador de Escritorio';
-  } else if (lowerModel.includes('dir-') || lowerBrand.includes('mikrotik') || lowerText.includes('router') || lowerText.includes('broadband')) {
+  } else if (
+    lowerModel.includes('dir-') ||
+    lowerBrand.includes('mikrotik') ||
+    lowerText.includes('router') ||
+    lowerText.includes('broadband')
+  ) {
     deviceType = 'Router Inalámbrico / Enrutador de Red';
-  } else if (lowerModel.includes('catalyst') || lowerModel.includes('ws-c') || lowerModel.includes('des-') || lowerModel.includes('dgs-') || lowerText.includes('switch')) {
+  } else if (
+    lowerModel.includes('catalyst') ||
+    lowerModel.includes('ws-c') ||
+    lowerModel.includes('des-') ||
+    lowerModel.includes('dgs-') ||
+    lowerText.includes('switch')
+  ) {
     deviceType = 'Switch de Red Administrable';
-  } else if (lowerModel.includes('u6-') || lowerModel.includes('unifi') || lowerText.includes('access point') || lowerText.includes('ap')) {
+  } else if (
+    lowerModel.includes('u6-') ||
+    lowerModel.includes('unifi') ||
+    lowerText.includes('access point') ||
+    lowerText.includes('ap')
+  ) {
     deviceType = 'Punto de Acceso Wi-Fi';
-  } else if (lowerBrand.includes('apc') || lowerBrand.includes('tripp lite') || lowerBrand.includes('forza') || lowerText.includes('ups')) {
+  } else if (
+    lowerBrand.includes('apc') ||
+    lowerBrand.includes('tripp lite') ||
+    lowerBrand.includes('forza') ||
+    lowerText.includes('ups')
+  ) {
     deviceType = 'Sistema de Respaldo UPS';
-  } else if (lowerModel.includes('poweredge') || lowerModel.includes('proliant') || lowerText.includes('server')) {
+  } else if (
+    lowerModel.includes('poweredge') ||
+    lowerModel.includes('proliant') ||
+    lowerText.includes('server')
+  ) {
     deviceType = 'Servidor Central de Datos';
-  } else if (lowerText.includes('nvr') || lowerText.includes('dvr') || lowerBrand.includes('hikvision') || lowerBrand.includes('dahua')) {
+  } else if (
+    lowerText.includes('nvr') ||
+    lowerText.includes('dvr') ||
+    lowerBrand.includes('hikvision') ||
+    lowerBrand.includes('dahua')
+  ) {
     deviceType = 'Grabador NVR / Cámara CCTV';
-  } else if (lowerBrand.includes('epson') || lowerBrand.includes('canon') || lowerBrand.includes('kyocera') || lowerBrand.includes('brother') || lowerText.includes('printer')) {
+  } else if (
+    lowerBrand.includes('epson') ||
+    lowerBrand.includes('canon') ||
+    lowerBrand.includes('kyocera') ||
+    lowerBrand.includes('brother') ||
+    lowerText.includes('printer')
+  ) {
     deviceType = 'Impresora / Multifuncional';
-  } else if (lowerBrand.includes('benq') || lowerBrand.includes('viewsonic') || lowerBrand.includes('optoma') || lowerText.includes('projector')) {
+  } else if (
+    lowerBrand.includes('benq') ||
+    lowerBrand.includes('viewsonic') ||
+    lowerBrand.includes('optoma') ||
+    lowerText.includes('projector')
+  ) {
     deviceType = 'Video Proyector Multimedia';
   } else {
     deviceType = 'Equipo Tecnológico / Infraestructura';
@@ -820,7 +910,12 @@ export async function scanBarcodeWithMultiAngle(
       const { file: enhancedRot, dataUrl: enhDataUrl } = await enhanceImageForScanning(rotatedFile);
       result = await scanBarcodeFromFile(enhancedRot);
       if (result) {
-        return { barcode: result, bestAngle: angle, bestFile: rotatedFile, bestDataUrl: rotDataUrl || enhDataUrl };
+        return {
+          barcode: result,
+          bestAngle: angle,
+          bestFile: rotatedFile,
+          bestDataUrl: rotDataUrl || enhDataUrl,
+        };
       }
     } catch {
       // Continuar al siguiente ángulo
@@ -880,9 +975,7 @@ export async function compressImageForAi(
  * Llama al endpoint de visión Gemini en el backend (/api/ai/scan-plate)
  * para reconocimiento inteligente de etiquetas y placas de alta precisión (Marca, Modelo, Serial, etc.).
  */
-export async function scanWithGeminiAi(
-  base64Image: string
-): Promise<PlateOcrResult | null> {
+export async function scanWithGeminiAi(base64Image: string): Promise<PlateOcrResult | null> {
   try {
     const optimizedBase64 = await compressImageForAi(base64Image, 1200, 0.85);
     const token = localStorage.getItem('fcbv_token');
@@ -1034,7 +1127,12 @@ export async function processPlateRecognition(
 
     // Si falta marca, modelo o serial, o el texto extraído es corto:
     // Probar pasada con filtro inverso (negativo: letras blancas o plateadas sobre chasis negro/gris oscuro)
-    if (!currentParsed.detectedBrand || !currentParsed.detectedModel || !currentParsed.detectedSerial || ocrText.trim().length < 30) {
+    if (
+      !currentParsed.detectedBrand ||
+      !currentParsed.detectedModel ||
+      !currentParsed.detectedSerial ||
+      ocrText.trim().length < 30
+    ) {
       if (onStatusUpdate) onStatusUpdate('Aplicando filtro inverso para etiquetas de fondo oscuro...');
       try {
         const inverted = await createInvertedContrastImage(file);
@@ -1067,10 +1165,7 @@ export async function processPlateRecognition(
   }
 
   // Paso 4: Unificar texto de OCR y código de barras decodificado
-  const combinedRawText = [
-    ocrText,
-    barcode ? `SN: ${barcode}\nBARCODE: ${barcode}\nSERIAL: ${barcode}` : '',
-  ]
+  const combinedRawText = [ocrText, barcode ? `SN: ${barcode}\nBARCODE: ${barcode}\nSERIAL: ${barcode}` : '']
     .filter(Boolean)
     .join('\n');
 
@@ -1103,4 +1198,3 @@ export async function processPlateRecognition(
     correctedDataUrl,
   };
 }
-

@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  X, 
-  MapPin, 
-  Building2, 
-  Layers, 
-  FileText, 
-  Check, 
+import {
+  X,
+  MapPin,
+  Check,
   AlertCircle,
   Server,
   FlaskConical,
@@ -15,19 +12,19 @@ import {
   Zap,
   HelpCircle,
   Plus,
-  Settings2
+  Settings2,
 } from 'lucide-react';
-import { CampusLocation, AreaType } from '../../types';
+import { CampusLocation, AreaType, BuildingMutationResult } from '../../types';
 
 interface LocationFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (location: CampusLocation, oldName?: string) => void;
+  onSave: (location: CampusLocation, oldName?: string) => void | Promise<void>;
   initialLocation?: CampusLocation | null;
   existingLocations: CampusLocation[];
   buildings: string[];
   onOpenBuildingManager?: () => void;
-  onAddBuilding?: (name: string) => { success: boolean; message: string };
+  onAddBuilding?: (name: string) => Promise<BuildingMutationResult>;
 }
 
 const AREA_TYPE_OPTIONS: Array<{
@@ -36,13 +33,48 @@ const AREA_TYPE_OPTIONS: Array<{
   desc: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = [
-  { value: 'datacenter', label: 'Data Center / Telecomunicaciones', desc: 'Racks, servidores, switches core y respaldo', icon: Server },
-  { value: 'laboratorio', label: 'Laboratorio de Cómputo / TIC', desc: 'Salas de cómputo, robótica e informática', icon: FlaskConical },
-  { value: 'aula', label: 'Aula / Biblioteca / Sala de Estudio', desc: 'Salas académicas y consulta estudiantil', icon: GraduationCap },
-  { value: 'oficina', label: 'Oficina Administrativa / Sistemas', desc: 'Mesa de ayuda TI y puestos de gestión', icon: Briefcase },
-  { value: 'auditorio', label: 'Auditorio / Sala Múltiple', desc: 'Proyección multimedia y conferencias', icon: Tv },
-  { value: 'infraestructura', label: 'Infraestructura / Energía / Aire', desc: 'Subestación, UPS, climatización y racks de paso', icon: Zap },
-  { value: 'otro', label: 'Otro Ambiente / Depósito', desc: 'Almacén general y espacios auxiliares', icon: HelpCircle },
+  {
+    value: 'datacenter',
+    label: 'Data Center / Telecomunicaciones',
+    desc: 'Racks, servidores, switches core y respaldo',
+    icon: Server,
+  },
+  {
+    value: 'laboratorio',
+    label: 'Laboratorio de Cómputo / TIC',
+    desc: 'Salas de cómputo, robótica e informática',
+    icon: FlaskConical,
+  },
+  {
+    value: 'aula',
+    label: 'Aula / Biblioteca / Sala de Estudio',
+    desc: 'Salas académicas y consulta estudiantil',
+    icon: GraduationCap,
+  },
+  {
+    value: 'oficina',
+    label: 'Oficina Administrativa / Sistemas',
+    desc: 'Mesa de ayuda TI y puestos de gestión',
+    icon: Briefcase,
+  },
+  {
+    value: 'auditorio',
+    label: 'Auditorio / Sala Múltiple',
+    desc: 'Proyección multimedia y conferencias',
+    icon: Tv,
+  },
+  {
+    value: 'infraestructura',
+    label: 'Infraestructura / Energía / Aire',
+    desc: 'Subestación, UPS, climatización y racks de paso',
+    icon: Zap,
+  },
+  {
+    value: 'otro',
+    label: 'Otro Ambiente / Depósito',
+    desc: 'Almacén general y espacios auxiliares',
+    icon: HelpCircle,
+  },
 ];
 
 export const LocationFormModal: React.FC<LocationFormModalProps> = ({
@@ -96,7 +128,7 @@ export const LocationFormModal: React.FC<LocationFormModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleCreateInlineBuilding = () => {
+  const handleCreateInlineBuilding = async () => {
     const trimmed = inlineNewBuilding.trim();
     if (!trimmed) {
       setBuildingMsg('Escriba el nombre del nuevo edificio.');
@@ -104,7 +136,7 @@ export const LocationFormModal: React.FC<LocationFormModalProps> = ({
     }
 
     if (onAddBuilding) {
-      const res = onAddBuilding(trimmed);
+      const res = await onAddBuilding(trimmed);
       if (!res.success) {
         setBuildingMsg(res.message);
         return;
@@ -211,7 +243,8 @@ export const LocationFormModal: React.FC<LocationFormModalProps> = ({
             />
             {initialLocation && initialLocation.name !== name && name.trim() && (
               <p className="text-[11px] text-amber-700 bg-amber-50 p-1.5 rounded border border-amber-200 mt-1">
-                ℹ️ Al cambiar el nombre de esta ubicación, todos los equipos asignados a "{initialLocation.name}" se actualizarán automáticamente a "{name}".
+                ℹ️ Al cambiar el nombre de esta ubicación, todos los equipos asignados a "
+                {initialLocation.name}" se actualizarán automáticamente a "{name}".
               </p>
             )}
           </div>
@@ -343,12 +376,16 @@ export const LocationFormModal: React.FC<LocationFormModalProps> = ({
                         : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                     }`}
                   >
-                    <div className={`p-1.5 rounded-md mt-0.5 shrink-0 ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                    <div
+                      className={`p-1.5 rounded-md mt-0.5 shrink-0 ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}
+                    >
                       <IconComponent className="w-4 h-4" />
                     </div>
                     <div>
                       <span className="text-xs font-semibold block">{opt.label}</span>
-                      <span className="text-[11px] text-slate-500 leading-tight block mt-0.5">{opt.desc}</span>
+                      <span className="text-[11px] text-slate-500 leading-tight block mt-0.5">
+                        {opt.desc}
+                      </span>
                     </div>
                   </label>
                 );

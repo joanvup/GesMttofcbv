@@ -4,7 +4,17 @@ export type EquipmentStatus = 'activo' | 'baja';
 
 export type ExecutionStatus = 'pendiente' | 'ejecutado' | 'atrasado';
 
-export type AreaType = 'aula' | 'laboratorio' | 'datacenter' | 'oficina' | 'auditorio' | 'infraestructura' | 'otro';
+export type AreaType =
+  'aula' | 'laboratorio' | 'datacenter' | 'oficina' | 'auditorio' | 'infraestructura' | 'otro';
+
+// Resultado de operaciones sobre el catálogo de edificios.
+// Los campos de detalle son opcionales para permitir respuestas de error simples.
+export interface BuildingMutationResult {
+  success: boolean;
+  message: string;
+  buildings?: string[];
+  affectedLocationsCount?: number;
+}
 
 export interface CampusLocation {
   id: string;
@@ -115,3 +125,17 @@ export interface DatabaseBackup {
   data: DatabaseBackupData;
 }
 
+export interface ServerBackupInfo {
+  filename: string;
+  sizeKB: number;
+  createdAt: string;
+  reason: string;
+  automatic: boolean;
+}
+
+export interface ServerBackupSettings {
+  directory: string;
+  retention: number;
+  intervalHours: number;
+  enabled: boolean;
+}

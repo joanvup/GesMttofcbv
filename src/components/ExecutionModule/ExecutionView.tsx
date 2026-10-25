@@ -1,29 +1,22 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  ClipboardCheck, 
-  Search, 
-  Filter, 
-  Calendar, 
-  CheckCircle2, 
-  Clock, 
-  AlertTriangle, 
-  Download, 
-  FileSpreadsheet, 
-  Edit3, 
-  FileCheck, 
-  UserCheck, 
-  ChevronLeft, 
+import {
+  ClipboardCheck,
+  Search,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  Download,
+  FileSpreadsheet,
+  Edit3,
+  UserCheck,
+  ChevronLeft,
   ChevronRight,
-  ShieldCheck,
   Check,
-  PlayCircle,
-  Zap,
   ShieldAlert,
   Plus,
-  Wrench
 } from 'lucide-react';
-import { Equipment, MaintenanceExecution, ExecutionStatus } from '../../types';
-import { MONTH_NAMES, MONTH_SHORT_NAMES, StorageService, isBusinessDay } from '../../services/storage';
+import { Equipment, MaintenanceExecution } from '../../types';
+import { MONTH_NAMES, MONTH_SHORT_NAMES, StorageService } from '../../services/storage';
 import { ExportService } from '../../services/exportService';
 import { ExecutionModal } from './ExecutionModal';
 import { BulkExecutionModal } from './BulkExecutionModal';
@@ -125,7 +118,9 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
   }, [activeEquipments]);
 
   // Filtrado de items
-  const [maintenanceFilterType, setMaintenanceFilterType] = useState<'preventivo' | 'correctivo'>('preventivo');
+  const [maintenanceFilterType, setMaintenanceFilterType] = useState<'preventivo' | 'correctivo'>(
+    'preventivo'
+  );
 
   // Mantenimientos correctivos en el año seleccionado
   const correctiveList = useMemo(() => {
@@ -133,21 +128,23 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
       .filter((e) => e.maintenanceType === 'correctivo' && e.year === selectedYear)
       .map((e) => ({
         execution: e,
-        equipment: eqMap.get(e.equipmentId) || {
-          id: e.equipmentId,
-          code: 'EQ-DESC',
-          name: 'Equipo Desconocido',
-          location: 'Sin ubicación',
-          brand: '',
-          model: '',
-          serial: '',
-          frequency: 'trimestral',
-          parts: [],
-          maintenanceTasks: [],
-          status: 'activo',
-          createdAt: '',
-          updatedAt: ''
-        } as Equipment
+        equipment:
+          eqMap.get(e.equipmentId) ||
+          ({
+            id: e.equipmentId,
+            code: 'EQ-DESC',
+            name: 'Equipo Desconocido',
+            location: 'Sin ubicación',
+            brand: '',
+            model: '',
+            serial: '',
+            frequency: 'trimestral',
+            parts: [],
+            maintenanceTasks: [],
+            status: 'activo',
+            createdAt: '',
+            updatedAt: '',
+          } as Equipment),
       }));
   }, [executions, selectedYear, eqMap]);
 
@@ -208,7 +205,7 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
     return { total, ejecutados, atrasados, pendientes, complianceRate };
   }, [scheduledItems]);
 
-  const handleOpenModal = (item: typeof scheduledItems[0]) => {
+  const handleOpenModal = (item: (typeof scheduledItems)[0]) => {
     setModalState({
       isOpen: true,
       equipment: item.equipment,
@@ -233,7 +230,8 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
             Registro de Mantenimiento Ejecutado
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Gestión de fechas específicas (días hábiles), checklist de tareas, firmas digitales y estado de ejecución
+            Gestión de fechas específicas (días hábiles), checklist de tareas, firmas digitales y estado de
+            ejecución
           </p>
         </div>
 
@@ -248,9 +246,7 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <div className="px-3 py-0.5 font-bold font-mono text-base text-slate-800">
-              {selectedYear}
-            </div>
+            <div className="px-3 py-0.5 font-bold font-mono text-base text-slate-800">{selectedYear}</div>
             <button
               type="button"
               onClick={() => onYearChange(selectedYear + 1)}
@@ -568,7 +564,7 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
                           </div>
                         </td>
                         <td className="py-3 px-3 whitespace-nowrap text-slate-700 font-medium">
-                          {execution.executionDate || execution.scheduledDate || 'No registrada'}
+                          {execution.executedDate || execution.scheduledDate || 'No registrada'}
                         </td>
                         <td className="py-3 px-4 max-w-xs text-slate-700">
                           <p className="line-clamp-2 text-xs">
@@ -576,9 +572,7 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
                           </p>
                         </td>
                         <td className="py-3 px-4 max-w-xs text-slate-600">
-                          <p className="line-clamp-2 text-xs">
-                            {execution.actionTaken || 'No especificada'}
-                          </p>
+                          <p className="line-clamp-2 text-xs">{execution.actionTaken || 'No especificada'}</p>
                         </td>
                         <td className="py-3 px-3 text-center whitespace-nowrap font-mono text-slate-700">
                           {execution.downtimeHours !== undefined && execution.downtimeHours !== null
@@ -603,7 +597,9 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
                           )}
                         </td>
                         <td className="py-3 px-3 whitespace-nowrap text-slate-700">
-                          <div className="font-medium text-xs">{execution.responsibleName || 'No asignado'}</div>
+                          <div className="font-medium text-xs">
+                            {execution.responsibleName || 'No asignado'}
+                          </div>
                           {hasSignature && (
                             <span className="text-[10px] text-emerald-600 flex items-center gap-0.5 font-medium">
                               <Check className="w-3 h-3" /> Firmado
@@ -633,7 +629,8 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
                         No hay mantenimientos correctivos registrados en este periodo
                       </p>
                       <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-                        Los mantenimientos correctivos se originan por atención de fallas imprevistas, escaneo de placa/QR en terreno o reporte técnico de averías.
+                        Los mantenimientos correctivos se originan por atención de fallas imprevistas, escaneo
+                        de placa/QR en terreno o reporte técnico de averías.
                       </p>
                       {onOpenCorrectiveModal && (
                         <button
@@ -653,159 +650,160 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
           </div>
         </div>
       ) : (
-      /* Tabla de Mantenimientos Programados / Ejecutados */
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
-                <th className="py-3 px-3">Código</th>
-                <th className="py-3 px-4">Equipo / Ubicación</th>
-                <th className="py-3 px-3 text-center">Mes</th>
-                <th className="py-3 px-3">Fecha Programada</th>
-                <th className="py-3 px-3 text-center">Estado</th>
-                <th className="py-3 px-3">Ejecución & Responsable</th>
-                <th className="py-3 px-3 text-center">Firma Digital</th>
-                <th className="py-3 px-4 text-right">Acción</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {filteredItems.length > 0 ? (
-                filteredItems.map((item, idx) => {
-                  const hasSignature = Boolean(item.execution?.signatureDataUrl);
-                  const isExecuted = item.status === 'ejecutado';
-                  const isOverdue = item.status === 'atrasado';
-
-                  return (
-                    <tr
-                      key={`${item.equipment.id}_${item.month}_${idx}`}
-                      className="hover:bg-slate-50/80 transition-colors"
-                    >
-                      {/* Código */}
-                      <td className="py-3 px-3 font-mono font-bold text-slate-800 whitespace-nowrap">
-                        <span className="px-2 py-1 bg-slate-100 border border-slate-300 rounded text-xs">
-                          {item.equipment.code}
-                        </span>
-                      </td>
-
-                      {/* Nombre y Ubicación */}
-                      <td className="py-3 px-4">
-                        <div className="font-semibold text-slate-800">{item.equipment.name}</div>
-                        <div className="text-[11px] text-slate-500 mt-0.5">{item.equipment.location}</div>
-                      </td>
-
-                      {/* Mes */}
-                      <td className="py-3 px-3 text-center whitespace-nowrap">
-                        <span className="font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                          {MONTH_NAMES[item.month - 1]}
-                        </span>
-                      </td>
-
-                      {/* Fecha Programada (Día hábil) */}
-                      <td className="py-3 px-3 whitespace-nowrap">
-                        {item.execution?.scheduledDate ? (
-                          <div className="font-mono text-xs text-slate-800 font-medium">
-                            {item.execution.scheduledDate}
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 italic text-[11px]">Sin fecha fijada</span>
-                        )}
-                      </td>
-
-                      {/* Estado */}
-                      <td className="py-3 px-3 text-center whitespace-nowrap">
-                        {isExecuted && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            Ejecutado
-                          </span>
-                        )}
-                        {isOverdue && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200">
-                            <AlertTriangle className="w-3.5 h-3.5" />
-                            Atrasado
-                          </span>
-                        )}
-                        {!isExecuted && !isOverdue && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                            <Clock className="w-3.5 h-3.5" />
-                            Pendiente
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Ejecución & Responsable */}
-                      <td className="py-3 px-3">
-                        {isExecuted ? (
-                          <div>
-                            <div className="font-medium text-slate-800 flex items-center gap-1">
-                              <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-                              {item.execution?.responsibleName || 'Técnico registrado'}
-                            </div>
-                            <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                              {item.execution?.executedDate || '-'}
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 text-xs italic">Pendiente de ejecución</span>
-                        )}
-                      </td>
-
-                      {/* Firma Digital Preview */}
-                      <td className="py-3 px-3 text-center whitespace-nowrap">
-                        {hasSignature ? (
-                          <div className="inline-flex flex-col items-center">
-                            <div className="w-16 h-7 border border-slate-200 rounded bg-white p-0.5 shadow-2xs overflow-hidden">
-                              <img
-                                src={item.execution?.signatureDataUrl}
-                                alt="Firma digital"
-                                className="w-full h-full object-contain"
-                              />
-                            </div>
-                            <span className="text-[9px] text-emerald-700 font-medium mt-0.5">
-                              Certificada
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-slate-300 text-xs">-</span>
-                        )}
-                      </td>
-
-                      {/* Acción */}
-                      <td className="py-3 px-4 text-right whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenModal(item)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border flex items-center gap-1.5 ml-auto transition-all ${
-                            isExecuted
-                              ? 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
-                              : 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-700 shadow-2xs'
-                          }`}
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                          {isExecuted ? 'Ver / Editar Acta' : 'Programar / Ejecutar'}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
-                    <ClipboardCheck className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                    <p className="text-sm font-medium text-slate-600">
-                      No hay mantenimientos que coincidan con los filtros
-                    </p>
-                    <p className="text-xs text-slate-400 mt-1">
-                      Ajuste los filtros de mes o estado, o asegúrese de que haya equipos con "X" en el Plan Anual.
-                    </p>
-                  </td>
+        /* Tabla de Mantenimientos Programados / Ejecutados */
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
+                  <th className="py-3 px-3">Código</th>
+                  <th className="py-3 px-4">Equipo / Ubicación</th>
+                  <th className="py-3 px-3 text-center">Mes</th>
+                  <th className="py-3 px-3">Fecha Programada</th>
+                  <th className="py-3 px-3 text-center">Estado</th>
+                  <th className="py-3 px-3">Ejecución & Responsable</th>
+                  <th className="py-3 px-3 text-center">Firma Digital</th>
+                  <th className="py-3 px-4 text-right">Acción</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {filteredItems.length > 0 ? (
+                  filteredItems.map((item, idx) => {
+                    const hasSignature = Boolean(item.execution?.signatureDataUrl);
+                    const isExecuted = item.status === 'ejecutado';
+                    const isOverdue = item.status === 'atrasado';
+
+                    return (
+                      <tr
+                        key={`${item.equipment.id}_${item.month}_${idx}`}
+                        className="hover:bg-slate-50/80 transition-colors"
+                      >
+                        {/* Código */}
+                        <td className="py-3 px-3 font-mono font-bold text-slate-800 whitespace-nowrap">
+                          <span className="px-2 py-1 bg-slate-100 border border-slate-300 rounded text-xs">
+                            {item.equipment.code}
+                          </span>
+                        </td>
+
+                        {/* Nombre y Ubicación */}
+                        <td className="py-3 px-4">
+                          <div className="font-semibold text-slate-800">{item.equipment.name}</div>
+                          <div className="text-[11px] text-slate-500 mt-0.5">{item.equipment.location}</div>
+                        </td>
+
+                        {/* Mes */}
+                        <td className="py-3 px-3 text-center whitespace-nowrap">
+                          <span className="font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                            {MONTH_NAMES[item.month - 1]}
+                          </span>
+                        </td>
+
+                        {/* Fecha Programada (Día hábil) */}
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          {item.execution?.scheduledDate ? (
+                            <div className="font-mono text-xs text-slate-800 font-medium">
+                              {item.execution.scheduledDate}
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 italic text-[11px]">Sin fecha fijada</span>
+                          )}
+                        </td>
+
+                        {/* Estado */}
+                        <td className="py-3 px-3 text-center whitespace-nowrap">
+                          {isExecuted && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Ejecutado
+                            </span>
+                          )}
+                          {isOverdue && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200">
+                              <AlertTriangle className="w-3.5 h-3.5" />
+                              Atrasado
+                            </span>
+                          )}
+                          {!isExecuted && !isOverdue && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                              <Clock className="w-3.5 h-3.5" />
+                              Pendiente
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Ejecución & Responsable */}
+                        <td className="py-3 px-3">
+                          {isExecuted ? (
+                            <div>
+                              <div className="font-medium text-slate-800 flex items-center gap-1">
+                                <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                {item.execution?.responsibleName || 'Técnico registrado'}
+                              </div>
+                              <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                {item.execution?.executedDate || '-'}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 text-xs italic">Pendiente de ejecución</span>
+                          )}
+                        </td>
+
+                        {/* Firma Digital Preview */}
+                        <td className="py-3 px-3 text-center whitespace-nowrap">
+                          {hasSignature ? (
+                            <div className="inline-flex flex-col items-center">
+                              <div className="w-16 h-7 border border-slate-200 rounded bg-white p-0.5 shadow-2xs overflow-hidden">
+                                <img
+                                  src={item.execution?.signatureDataUrl}
+                                  alt="Firma digital"
+                                  className="w-full h-full object-contain"
+                                />
+                              </div>
+                              <span className="text-[9px] text-emerald-700 font-medium mt-0.5">
+                                Certificada
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-slate-300 text-xs">-</span>
+                          )}
+                        </td>
+
+                        {/* Acción */}
+                        <td className="py-3 px-4 text-right whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenModal(item)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border flex items-center gap-1.5 ml-auto transition-all ${
+                              isExecuted
+                                ? 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
+                                : 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-700 shadow-2xs'
+                            }`}
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            {isExecuted ? 'Ver / Editar Acta' : 'Programar / Ejecutar'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center text-slate-400">
+                      <ClipboardCheck className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                      <p className="text-sm font-medium text-slate-600">
+                        No hay mantenimientos que coincidan con los filtros
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Ajuste los filtros de mes o estado, o asegúrese de que haya equipos con "X" en el Plan
+                        Anual.
+                      </p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
       )}
 
       {/* Modal de Ejecución Individual */}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trash2, AlertTriangle, CheckCircle2, RotateCcw, X, Building, Server, CalendarDays, ShieldAlert } from 'lucide-react';
+import { Trash2, AlertTriangle, X, Building, Server, CalendarDays, ShieldAlert } from 'lucide-react';
 
 interface ClearDataModalProps {
   isOpen: boolean;
@@ -33,7 +33,7 @@ export const ClearDataModal: React.FC<ClearDataModalProps> = ({
   };
 
   return (
-    <div 
+    <div
       id="modal-clear-demo-data"
       className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
       role="dialog"
@@ -70,7 +70,8 @@ export const ClearDataModal: React.FC<ClearDataModalProps> = ({
         <div className="p-6 space-y-5">
           <div className="text-xs text-slate-600 space-y-2">
             <p>
-              Esta acción eliminará los registros de prueba precargados para que pueda configurar el sistema desde cero con el inventario y cronograma oficial del <strong>Colegio Bilingüe (FCBV)</strong>.
+              Esta acción eliminará los registros de prueba precargados para que pueda configurar el sistema
+              desde cero con el inventario y cronograma oficial del <strong>Colegio Bilingüe (FCBV)</strong>.
             </p>
           </div>
 
@@ -132,7 +133,8 @@ export const ClearDataModal: React.FC<ClearDataModalProps> = ({
                   Conservar el catálogo de Ubicaciones del Campus ({locationsCount} espacios)
                 </span>
                 <p className="text-slate-500 text-[11px] mt-0.5">
-                  Marque esta casilla si desea conservar los edificios, salas de cómputo y laboratorios para reutilizarlos con sus equipos reales.
+                  Marque esta casilla si desea conservar los edificios, salas de cómputo y laboratorios para
+                  reutilizarlos con sus equipos reales.
                 </p>
               </div>
             </label>
@@ -143,7 +145,9 @@ export const ClearDataModal: React.FC<ClearDataModalProps> = ({
             <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
             <div>
               <span>
-                Recomendación: Puede descargar previamente una <strong>Copia de Seguridad (.json)</strong> completa desde la barra superior. Si desea recuperar los datos de ejemplo más adelante, también podrá usar el botón <strong>"Restaurar Demo"</strong>.
+                Recomendación: Puede descargar previamente una <strong>Copia de Seguridad (.json)</strong>{' '}
+                completa desde la barra superior. Si desea recuperar los datos de ejemplo más adelante,
+                también podrá usar el botón <strong>"Restaurar Demo"</strong>.
               </span>
             </div>
           </div>

@@ -14,23 +14,23 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !password) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password }),
       });
-      
+
       const data = await res.json();
-      
+
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Credenciales incorrectas');
       }
-      
+
       onLogin(data.token, data.user);
     } catch (err: any) {
       setError(err.message);
@@ -49,7 +49,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <h1 className="text-2xl font-black text-white tracking-tight">SGC FCBV</h1>
           <p className="text-indigo-100 text-sm mt-1">Portal de Gestión y Reportes</p>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
           {error && (
             <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm flex items-start gap-2 border border-red-100">
@@ -57,7 +57,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               <span>{error}</span>
             </div>
           )}
-          
+
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">
@@ -75,7 +75,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 />
               </div>
             </div>
-            
+
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">
                 Contraseña
@@ -93,7 +93,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               </div>
             </div>
           </div>
-          
+
           <button
             type="submit"
             disabled={loading}

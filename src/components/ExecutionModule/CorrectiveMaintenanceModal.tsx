@@ -1,18 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  X, 
-  Wrench, 
-  AlertTriangle, 
-  Calendar, 
-  Clock, 
-  CheckCircle2, 
-  User, 
-  Layers, 
-  Plus, 
-  Trash2,
+import {
+  X,
+  AlertTriangle,
+  Calendar,
+  Clock,
+  CheckCircle2,
+  User,
+  Plus,
   PenTool,
-  HelpCircle,
-  ShieldAlert
+  ShieldAlert,
 } from 'lucide-react';
 import { Equipment, MaintenanceExecution } from '../../types';
 import { SignaturePad } from '../SignaturePad';
@@ -48,7 +44,9 @@ export const CorrectiveMaintenanceModal: React.FC<CorrectiveMaintenanceModalProp
   useEffect(() => {
     if (isOpen && equipment) {
       if (initialExecution) {
-        setExecutedDate(initialExecution.executedDate || new Date().toISOString().slice(0, 16).replace('T', ' '));
+        setExecutedDate(
+          initialExecution.executedDate || new Date().toISOString().slice(0, 16).replace('T', ' ')
+        );
         setFailureDescription(initialExecution.failureDescription || '');
         setActionTaken(initialExecution.actionTaken || '');
         setDowntimeHours(initialExecution.downtimeHours || 1);
@@ -106,13 +104,13 @@ export const CorrectiveMaintenanceModal: React.FC<CorrectiveMaintenanceModalProp
 
     const now = new Date();
     const executionYear = executedDate ? parseInt(executedDate.substring(0, 4), 10) : now.getFullYear();
-    const executionMonth = executedDate ? parseInt(executedDate.substring(5, 7), 10) : (now.getMonth() + 1);
+    const executionMonth = executedDate ? parseInt(executedDate.substring(5, 7), 10) : now.getMonth() + 1;
 
     const correctiveExecution: MaintenanceExecution = {
       id: initialExecution?.id || `corr_${equipment.id}_${Date.now()}`,
       equipmentId: equipment.id,
       year: isNaN(executionYear) ? now.getFullYear() : executionYear,
-      month: isNaN(executionMonth) ? (now.getMonth() + 1) : executionMonth,
+      month: isNaN(executionMonth) ? now.getMonth() + 1 : executionMonth,
       scheduledDate: executedDate ? executedDate.split(' ')[0] : now.toISOString().split('T')[0],
       isExecuted: true,
       executedDate: executedDate || now.toISOString().slice(0, 16).replace('T', ' '),
@@ -166,11 +164,13 @@ export const CorrectiveMaintenanceModal: React.FC<CorrectiveMaintenanceModalProp
             <span className="font-semibold text-slate-800">{equipment.name}</span>
           </div>
           <div className="flex items-center gap-3 text-slate-600">
-            <span><strong>Ubicación:</strong> {equipment.location}</span>
-            <span><strong>Marca/Modelo:</strong> {equipment.brand} {equipment.model}</span>
-            {equipment.serial && (
-              <span className="font-mono text-slate-500">S/N: {equipment.serial}</span>
-            )}
+            <span>
+              <strong>Ubicación:</strong> {equipment.location}
+            </span>
+            <span>
+              <strong>Marca/Modelo:</strong> {equipment.brand} {equipment.model}
+            </span>
+            {equipment.serial && <span className="font-mono text-slate-500">S/N: {equipment.serial}</span>}
           </div>
         </div>
 
@@ -305,11 +305,13 @@ export const CorrectiveMaintenanceModal: React.FC<CorrectiveMaintenanceModalProp
               Estado Operativo Final del Equipo
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-              <label className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all ${
-                finalStatus === 'operativo'
-                  ? 'border-emerald-500 bg-emerald-50 text-emerald-900 font-semibold'
-                  : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-              }`}>
+              <label
+                className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                  finalStatus === 'operativo'
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-900 font-semibold'
+                    : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                }`}
+              >
                 <input
                   type="radio"
                   name="finalStatus"
@@ -321,11 +323,13 @@ export const CorrectiveMaintenanceModal: React.FC<CorrectiveMaintenanceModalProp
                 <span>✓ 100% Operativo</span>
               </label>
 
-              <label className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all ${
-                finalStatus === 'requiere_repuesto'
-                  ? 'border-amber-500 bg-amber-50 text-amber-900 font-semibold'
-                  : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-              }`}>
+              <label
+                className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                  finalStatus === 'requiere_repuesto'
+                    ? 'border-amber-500 bg-amber-50 text-amber-900 font-semibold'
+                    : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                }`}
+              >
                 <input
                   type="radio"
                   name="finalStatus"
@@ -337,11 +341,13 @@ export const CorrectiveMaintenanceModal: React.FC<CorrectiveMaintenanceModalProp
                 <span>⚠️ Requiere Repuesto</span>
               </label>
 
-              <label className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all ${
-                finalStatus === 'baja'
-                  ? 'border-rose-500 bg-rose-50 text-rose-900 font-semibold'
-                  : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-              }`}>
+              <label
+                className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                  finalStatus === 'baja'
+                    ? 'border-rose-500 bg-rose-50 text-rose-900 font-semibold'
+                    : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                }`}
+              >
                 <input
                   type="radio"
                   name="finalStatus"

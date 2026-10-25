@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
@@ -6,25 +5,43 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { GoogleGenAI, Type } from '@google/genai';
-import { createServer as createViteServer } from 'vite';
-import { db, getDbConfig, saveDbConfig, testMysqlConnection, migrateSqliteToMysql, sqliteFilePath } from './src/db/index';
+import { env } from './server/env';
+import {
+  db,
+  getDbConfig,
+  saveDbConfig,
+  testMysqlConnection,
+  migrateSqliteToMysql,
+  sqliteFilePath,
+} from './src/db/index';
+import { ensureSchema } from './src/db/bootstrap';
 import { users, equipments, annualPlans, executions, locations, buildings, settings } from './src/db/schema';
 import { eq } from 'drizzle-orm';
-import { INITIAL_EQUIPMENTS, INITIAL_LOCATIONS, INITIAL_BUILDINGS, INITIAL_EXECUTIONS_SEED } from './src/seeds/initialData';
+import {
+  INITIAL_EQUIPMENTS,
+  INITIAL_LOCATIONS,
+  INITIAL_BUILDINGS,
+  INITIAL_EXECUTIONS_SEED,
+} from './src/seeds/initialData';
+import {
+  SyncError,
+  applySyncEntity,
+  bumpEntityRevision,
+  getEntityRevision,
+  isSyncEntity,
+} from './server/sync';
+import {
+  BackupUnavailableError,
+  createBackup,
+  deleteBackup,
+  getBackupSettings,
+  listBackups,
+  resolveBackupPath,
+  startAutomaticBackups,
+} from './server/backup';
 
-const app = express();
-// En AI Studio (Cloud Run) el puerto debe ser estrictamente 3000 para el proxy Nginx.
-// En servidores externos (Ubuntu / PM2) se respeta process.env.PORT (ej. 3050)
-const PORT = process.env.K_SERVICE ? 3000 : (Number(process.env.PORT) || 3000);
-const JWT_SECRET_ENV = process.env.JWT_SECRET;
-
-if (!JWT_SECRET_ENV || JWT_SECRET_ENV.length < 32) {
-  console.error('[FATAL] JWT_SECRET no está configurado o es demasiado corto (mínimo 32 caracteres).');
-  console.error('Defina JWT_SECRET en el archivo .env antes de iniciar el servidor.');
-  process.exit(1);
-}
-
-const JWT_SECRET: string = JWT_SECRET_ENV;
+export const app = express();
+const JWT_SECRET: string = env.jwtSecret;
 
 app.disable('x-powered-by');
 
@@ -55,8 +72,8 @@ function initUsersDb() {
   const existingAdmin = db.select().from(users).where(eq(users.username, 'admin')).get();
   if (existingAdmin) return;
 
-  const adminPassword = process.env.INITIAL_ADMIN_PASSWORD || generateTemporaryPassword();
-  const revisorPassword = process.env.INITIAL_REVISOR_PASSWORD;
+  const adminPassword = env.initialAdminPassword || generateTemporaryPassword();
+  const revisorPassword = env.initialRevisorPassword;
 
   const seedUsers: any[] = [
     {
@@ -64,8 +81,8 @@ function initUsersDb() {
       username: 'admin',
       passwordHash: bcrypt.hashSync(adminPassword, 12),
       name: 'Administrador Principal',
-      role: 'admin'
-    }
+      role: 'admin',
+    },
   ];
 
   if (revisorPassword) {
@@ -74,13 +91,13 @@ function initUsersDb() {
       username: 'revisor',
       passwordHash: bcrypt.hashSync(revisorPassword, 12),
       name: 'Revisor SGC',
-      role: 'revisor'
+      role: 'revisor',
     });
   }
 
   db.insert(users).values(seedUsers).run();
 
-  if (!process.env.INITIAL_ADMIN_PASSWORD) {
+  if (!env.initialAdminPassword) {
     console.warn('============================================================');
     console.warn('[SEGURIDAD] Se creó el usuario administrador con contraseña temporal:');
     console.warn('  Usuario: admin');
@@ -100,7 +117,9 @@ function warnAboutDefaultPasswords() {
   for (const item of defaults) {
     const user = db.select().from(users).where(eq(users.username, item.username)).get();
     if (user && bcrypt.compareSync(item.password, user.passwordHash)) {
-      console.warn(`[SEGURIDAD] El usuario "${item.username}" sigue usando la contraseña por defecto. Cámbiela en Gestión de Usuarios.`);
+      console.warn(
+        `[SEGURIDAD] El usuario "${item.username}" sigue usando la contraseña por defecto. Cámbiela en Gestión de Usuarios.`
+      );
     }
   }
 }
@@ -118,7 +137,9 @@ function seedInitialDataIfEmpty() {
       // 1. Edificios
       const existingBuildings = tx.select().from(buildings).all();
       if (existingBuildings.length === 0) {
-        tx.insert(buildings).values(INITIAL_BUILDINGS.map(name => ({ name }))).run();
+        tx.insert(buildings)
+          .values(INITIAL_BUILDINGS.map((name) => ({ name })))
+          .run();
       }
 
       // 2. Ubicaciones
@@ -128,36 +149,56 @@ function seedInitialDataIfEmpty() {
       }
 
       // 3. Equipos
-      tx.insert(equipments).values(INITIAL_EQUIPMENTS.map(e => ({
-        ...e,
-        parts: JSON.stringify(e.parts || []),
-        maintenanceTasks: JSON.stringify(e.maintenanceTasks || []),
-        customMonths: e.customMonths ? JSON.stringify(e.customMonths) : null
-      }))).run();
+      tx.insert(equipments)
+        .values(
+          INITIAL_EQUIPMENTS.map((e) => ({
+            ...e,
+            parts: JSON.stringify(e.parts || []),
+            maintenanceTasks: JSON.stringify(e.maintenanceTasks || []),
+            customMonths: e.customMonths ? JSON.stringify(e.customMonths) : null,
+          }))
+        )
+        .run();
 
       // 4. Ejecuciones
       const existingExecs = tx.select().from(executions).all();
       if (existingExecs.length === 0) {
-        tx.insert(executions).values(INITIAL_EXECUTIONS_SEED.map(e => ({
-          ...e,
-          completedTasks: JSON.stringify(e.completedTasks || []),
-          partsReplaced: e.partsReplaced ? JSON.stringify(e.partsReplaced) : null
-        }))).run();
+        tx.insert(executions)
+          .values(
+            INITIAL_EXECUTIONS_SEED.map((e) => ({
+              ...e,
+              completedTasks: JSON.stringify(e.completedTasks || []),
+              partsReplaced: e.partsReplaced ? JSON.stringify(e.partsReplaced) : null,
+            }))
+          )
+          .run();
       }
     });
   }
 }
 
-initUsersDb();
-warnAboutDefaultPasswords();
-seedInitialDataIfEmpty();
+/**
+ * Prepara la base de datos y los datos iniciales.
+ * Se ejecuta al importar el módulo, de modo que las pruebas tengan el mismo
+ * estado que un arranque real del servidor.
+ */
+export function initializeApp(): void {
+  ensureSchema();
+  initUsersDb();
+  if (!env.isTest) {
+    warnAboutDefaultPasswords();
+  }
+  seedInitialDataIfEmpty();
+}
+
+initializeApp();
 
 const authenticateToken = (req: any, res: any, next: any) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  
+
   if (token == null) return res.status(401).json({ error: 'No token provided' });
-  
+
   jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
     if (err) return res.status(401).json({ error: 'Sesión inválida o expirada' });
     req.user = user;
@@ -175,8 +216,11 @@ const requireAdmin = (req: any, res: any, next: any) => {
 // Limitador de peticiones en memoria (suficiente para 1-2 usuarios y un solo proceso PM2)
 type RateLimitOptions = { windowMs: number; max: number; message: string };
 
+const rateLimiterRegistries: Array<Map<string, { count: number; resetAt: number }>> = [];
+
 function createRateLimiter({ windowMs, max, message }: RateLimitOptions) {
   const hits = new Map<string, { count: number; resetAt: number }>();
+  rateLimiterRegistries.push(hits);
 
   return (req: any, res: any, next: any) => {
     const now = Date.now();
@@ -207,37 +251,47 @@ function createRateLimiter({ windowMs, max, message }: RateLimitOptions) {
   };
 }
 
+/** Reinicia los contadores de los limitadores. Solo para pruebas. */
+export function resetRateLimiters(): void {
+  rateLimiterRegistries.forEach((registry) => registry.clear());
+}
+
 const loginRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 10,
-  message: 'Demasiados intentos de inicio de sesión. Intente de nuevo en 15 minutos.'
+  message: 'Demasiados intentos de inicio de sesión. Intente de nuevo en 15 minutos.',
 });
 
 const aiRateLimiter = createRateLimiter({
   windowMs: 60 * 1000,
   max: 20,
-  message: 'Demasiadas solicitudes de reconocimiento. Espere un momento e intente de nuevo.'
+  message: 'Demasiadas solicitudes de reconocimiento. Espere un momento e intente de nuevo.',
 });
 
 // RUTAS DE AUTENTICACIÓN
 app.post('/api/auth/login', loginRateLimiter, (req, res) => {
-  const { username, password } = req.body;
-  const user = db.select().from(users).where(eq(users.username, username)).get();
-  
+  const { username, password } = req.body ?? {};
+
+  if (typeof username !== 'string' || typeof password !== 'string' || !username.trim() || !password) {
+    return res.status(400).json({ success: false, error: 'Usuario y contraseña son obligatorios' });
+  }
+
+  const user = db.select().from(users).where(eq(users.username, username.trim())).get();
+
   if (!user || !bcrypt.compareSync(password, user.passwordHash)) {
     return res.status(401).json({ success: false, error: 'Usuario o contraseña incorrectos' });
   }
-  
+
   const token = jwt.sign(
     { id: user.id, username: user.username, role: user.role, name: user.name },
     JWT_SECRET,
     { expiresIn: '24h' }
   );
-  
+
   res.json({
     success: true,
     token,
-    user: { id: user.id, username: user.username, role: user.role, name: user.name }
+    user: { id: user.id, username: user.username, role: user.role, name: user.name },
   });
 });
 
@@ -247,10 +301,14 @@ app.get('/api/auth/me', authenticateToken, (req: any, res) => {
 
 // RUTAS DE USUARIOS
 app.get('/api/users', authenticateToken, requireAdmin, (req, res) => {
-  const allUsers = db.select().from(users).all().map(u => {
-    const { passwordHash, ...safeUser } = u;
-    return safeUser;
-  });
+  const allUsers = db
+    .select()
+    .from(users)
+    .all()
+    .map((u) => {
+      const { passwordHash, ...safeUser } = u;
+      return safeUser;
+    });
   res.json({ success: true, users: allUsers });
 });
 
@@ -259,18 +317,18 @@ app.post('/api/users', authenticateToken, requireAdmin, (req, res) => {
   if (!username || !password || !name || !role) {
     return res.status(400).json({ error: 'Todos los campos son obligatorios' });
   }
-  
+
   const existing = db.select().from(users).where(eq(users.username, username)).get();
   if (existing) return res.status(400).json({ error: 'El nombre de usuario ya existe' });
-  
+
   const newUser = {
     id: Date.now().toString(),
     username,
     passwordHash: bcrypt.hashSync(password, 10),
     name,
-    role
+    role,
   };
-  
+
   db.insert(users).values(newUser).run();
   const { passwordHash, ...safeUser } = newUser;
   res.json({ success: true, user: safeUser });
@@ -280,8 +338,9 @@ app.delete('/api/users/:id', authenticateToken, requireAdmin, (req, res) => {
   const { id } = req.params;
   const user = db.select().from(users).where(eq(users.id, id)).get();
   if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
-  if (user.username === 'admin') return res.status(400).json({ error: 'No se puede eliminar el administrador principal' });
-  
+  if (user.username === 'admin')
+    return res.status(400).json({ error: 'No se puede eliminar el administrador principal' });
+
   db.delete(users).where(eq(users.id, id)).run();
   res.json({ success: true });
 });
@@ -291,20 +350,22 @@ app.put('/api/users/:id', authenticateToken, requireAdmin, (req, res) => {
   const { username, name, role, password } = req.body;
   const user = db.select().from(users).where(eq(users.id, id)).get();
   if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
-  
+
   if (username !== user.username) {
     const existing = db.select().from(users).where(eq(users.username, username)).get();
     if (existing) return res.status(400).json({ error: 'El nombre de usuario ya existe' });
   }
-  
+
   if (user.username === 'admin') {
-    if (role !== 'admin') return res.status(400).json({ error: 'No se puede quitar el rol al administrador principal' });
-    if (username !== 'admin') return res.status(400).json({ error: 'No se puede cambiar el usuario al administrador principal' });
+    if (role !== 'admin')
+      return res.status(400).json({ error: 'No se puede quitar el rol al administrador principal' });
+    if (username !== 'admin')
+      return res.status(400).json({ error: 'No se puede cambiar el usuario al administrador principal' });
   }
-  
+
   const updateData: any = { username, name, role };
   if (password) updateData.passwordHash = bcrypt.hashSync(password, 10);
-  
+
   db.update(users).set(updateData).where(eq(users.id, id)).run();
   const updatedUser = db.select().from(users).where(eq(users.id, id)).get();
   const { passwordHash, ...userWithoutPassword } = updatedUser as any;
@@ -312,41 +373,64 @@ app.put('/api/users/:id', authenticateToken, requireAdmin, (req, res) => {
 });
 
 // RUTAS SYNC
+// La lista blanca vive en server/sync.ts para compartirla con las pruebas y
+// mantener las rutas delgadas.
+
 app.get('/api/sync/:entity', authenticateToken, (req, res) => {
   const { entity } = req.params;
+
+  if (!isSyncEntity(entity)) {
+    return res.status(404).json({ success: false, error: `Entidad de sincronización no válida: ${entity}` });
+  }
+
   let data: any = [];
   try {
-    if (entity === "equipments") {
-      data = db.select().from(equipments).all().map(e => ({
-        ...e,
-        parts: JSON.parse(e.parts),
-        maintenanceTasks: JSON.parse(e.maintenanceTasks),
-        customMonths: e.customMonths ? JSON.parse(e.customMonths) : undefined
-      }));
-    } else if (entity === "locations") {
+    if (entity === 'equipments') {
+      data = db
+        .select()
+        .from(equipments)
+        .all()
+        .map((e) => ({
+          ...e,
+          parts: JSON.parse(e.parts),
+          maintenanceTasks: JSON.parse(e.maintenanceTasks),
+          customMonths: e.customMonths ? JSON.parse(e.customMonths) : undefined,
+        }));
+    } else if (entity === 'locations') {
       data = db.select().from(locations).all();
-    } else if (entity === "buildings") {
-      data = db.select().from(buildings).all().map(b => b.name);
-    } else if (entity === "annualPlans") {
+    } else if (entity === 'buildings') {
+      data = db
+        .select()
+        .from(buildings)
+        .all()
+        .map((b) => b.name);
+    } else if (entity === 'annualPlans') {
       data = {};
       const plans = db.select().from(annualPlans).all();
-      plans.forEach(p => {
+      plans.forEach((p) => {
         if (!data[p.year]) data[p.year] = {};
         data[p.year][p.equipmentId] = JSON.parse(p.schedules);
       });
-    } else if (entity === "executions") {
-      data = db.select().from(executions).all().map(e => ({
-        ...e,
-        completedTasks: JSON.parse(e.completedTasks),
-        partsReplaced: e.partsReplaced ? JSON.parse(e.partsReplaced) : undefined,
-        maintenanceType: (e as any).maintenanceType || 'preventivo',
-        failureDescription: (e as any).failureDescription || undefined,
-        actionTaken: (e as any).actionTaken || undefined,
-        downtimeHours: (e as any).downtimeHours !== null ? (e as any).downtimeHours : undefined,
-        finalOperationalStatus: (e as any).finalOperationalStatus || undefined
-      }));
+    } else if (entity === 'executions') {
+      data = db
+        .select()
+        .from(executions)
+        .all()
+        .map((e) => ({
+          ...e,
+          completedTasks: JSON.parse(e.completedTasks),
+          partsReplaced: e.partsReplaced ? JSON.parse(e.partsReplaced) : undefined,
+          maintenanceType: (e as any).maintenanceType || 'preventivo',
+          failureDescription: (e as any).failureDescription || undefined,
+          actionTaken: (e as any).actionTaken || undefined,
+          downtimeHours: (e as any).downtimeHours !== null ? (e as any).downtimeHours : undefined,
+          finalOperationalStatus: (e as any).finalOperationalStatus || undefined,
+        }));
     }
-    res.json({ success: true, data });
+
+    const revision = getEntityRevision(entity);
+    res.setHeader('ETag', `"rev-${revision}"`);
+    res.json({ success: true, data, revision });
   } catch (e: any) {
     res.status(500).json({ success: false, error: e.message });
   }
@@ -354,73 +438,82 @@ app.get('/api/sync/:entity', authenticateToken, (req, res) => {
 
 app.post('/api/sync/:entity', authenticateToken, requireAdmin, (req, res) => {
   const { entity } = req.params;
-  const payload = req.body;
-  
+
+  if (!isSyncEntity(entity)) {
+    return res.status(404).json({ success: false, error: `Entidad de sincronización no válida: ${entity}` });
+  }
+
+  // Formato recomendado: { data, expectedRevision }. Se sigue aceptando el
+  // cuerpo plano anterior para no romper clientes ya desplegados.
+  const body = req.body;
+  const envelope =
+    body &&
+    typeof body === 'object' &&
+    !Array.isArray(body) &&
+    Object.prototype.hasOwnProperty.call(body, 'data');
+  const payload = envelope ? body.data : body;
+
+  let expectedRevision: number | undefined;
+
+  const ifMatch = req.headers['if-match'];
+  if (typeof ifMatch === 'string' && ifMatch.trim() !== '') {
+    const cleaned = ifMatch.trim().replace(/^W\//i, '').replace(/"/g, '').replace(/^rev-/i, '');
+    const parsed = Number(cleaned);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+      return res.status(400).json({ success: false, error: 'El encabezado If-Match no es válido.' });
+    }
+    expectedRevision = parsed;
+  }
+
+  if (envelope && body.expectedRevision !== undefined && body.expectedRevision !== null) {
+    const parsed = Number(body.expectedRevision);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+      return res.status(400).json({ success: false, error: 'expectedRevision no es válido.' });
+    }
+    expectedRevision = parsed;
+  }
+
   try {
-    db.transaction((tx) => {
-      if (entity === "equipments") {
-        tx.delete(equipments).run();
-        if (payload.length > 0) {
-          const uniqueEquipments = [];
-          const seenCodes = new Set();
-          for (const e of payload) {
-             const code = e.code?.toUpperCase().trim();
-             if (!seenCodes.has(code)) {
-               seenCodes.add(code);
-               uniqueEquipments.push({
-                 ...e,
-                 parts: JSON.stringify(e.parts || []),
-                 maintenanceTasks: JSON.stringify(e.maintenanceTasks || []),
-                 customMonths: e.customMonths ? JSON.stringify(e.customMonths) : null
-               });
-             }
-          }
-          if (uniqueEquipments.length > 0) {
-            tx.insert(equipments).values(uniqueEquipments).run();
-          }
-        }
-      } else if (entity === "locations") {
-        tx.delete(locations).run();
-        if (payload.length > 0) {
-          tx.insert(locations).values(payload).run();
-        }
-      } else if (entity === "buildings") {
-        tx.delete(buildings).run();
-        if (payload.length > 0) {
-          tx.insert(buildings).values(payload.map((name: string) => ({ name }))).run();
-        }
-      } else if (entity === "annualPlans") {
-        tx.delete(annualPlans).run();
-        const inserts: any[] = [];
-        for (const [yearStr, yearData] of Object.entries(payload)) {
-          for (const [equipmentId, schedules] of Object.entries(yearData as any)) {
-            inserts.push({
-              id: `${yearStr}_${equipmentId}`,
-              equipmentId,
-              year: parseInt(yearStr),
-              schedules: JSON.stringify(schedules)
-            });
-          }
-        }
-        if (inserts.length > 0) tx.insert(annualPlans).values(inserts).run();
-      } else if (entity === "executions") {
-        tx.delete(executions).run();
-        if (payload.length > 0) {
-          tx.insert(executions).values(payload.map((e: any) => ({
-            ...e,
-            completedTasks: JSON.stringify(e.completedTasks || []),
-            partsReplaced: e.partsReplaced ? JSON.stringify(e.partsReplaced) : null,
-            maintenanceType: e.maintenanceType || 'preventivo',
-            failureDescription: e.failureDescription || null,
-            actionTaken: e.actionTaken || null,
-            downtimeHours: e.downtimeHours !== undefined ? e.downtimeHours : null,
-            finalOperationalStatus: e.finalOperationalStatus || null
-          }))).run();
-        }
+    const result = db.transaction((tx) => {
+      // Se aplica primero el cambio (se revierte si hay conflicto) para que los
+      // errores de validación del cuerpo tengan prioridad sobre el 409.
+      applySyncEntity(tx, entity, payload);
+
+      const currentRevision = getEntityRevision(entity);
+      if (expectedRevision !== undefined && expectedRevision !== currentRevision) {
+        throw new SyncError(
+          409,
+          `Otro usuario modificó ${entity} mientras editaba. Recargue los datos e intente de nuevo.`
+        );
       }
+
+      const revision = bumpEntityRevision(tx, entity, (req as any).user?.username);
+
+      return { revision };
     });
-    res.json({ success: true });
+
+    res.setHeader('ETag', `"rev-${result.revision}"`);
+    res.json({ success: true, revision: result.revision });
   } catch (e: any) {
+    if (e instanceof SyncError) {
+      const response: Record<string, any> = { success: false, error: e.message };
+      if (e.statusCode === 409) {
+        response.code = 'SYNC_CONFLICT';
+        response.revision = getEntityRevision(entity);
+      }
+      return res.status(e.statusCode).json(response);
+    }
+
+    // Violación de una restricción UNIQUE: otro cliente ganó la carrera.
+    if (String(e?.message || '').includes('UNIQUE constraint failed')) {
+      return res.status(409).json({
+        success: false,
+        code: 'SYNC_CONFLICT',
+        error: 'Los datos entran en conflicto con otro cambio reciente (código o identificador duplicado).',
+        revision: getEntityRevision(entity),
+      });
+    }
+
     res.status(500).json({ success: false, error: e.message });
   }
 });
@@ -442,10 +535,23 @@ app.post('/api/settings', authenticateToken, requireAdmin, (req, res) => {
   res.json({ success: true });
 });
 
+// Copia preventiva obligatoria antes de operaciones destructivas.
+// En una base en memoria no hay archivo que respaldar, así que se omite.
+async function backupBeforeDestructiveOperation(reason: string): Promise<void> {
+  try {
+    await createBackup(reason);
+  } catch (error) {
+    if (error instanceof BackupUnavailableError) return;
+    throw error;
+  }
+}
+
 // Endpoint para vaciar deliberadamente la base de datos (iniciar con datos reales)
-app.post('/api/database/clear-data', authenticateToken, requireAdmin, (req, res) => {
+app.post('/api/database/clear-data', authenticateToken, requireAdmin, async (req, res) => {
   const { preserveLocations } = req.body || {};
   try {
+    await backupBeforeDestructiveOperation('pre-clear');
+
     const currentEquipmentsCount = db.select().from(equipments).all().length;
     const currentLocationsCount = db.select().from(locations).all().length;
     const currentExecutionsCount = db.select().from(executions).all().length;
@@ -471,7 +577,7 @@ app.post('/api/database/clear-data', authenticateToken, requireAdmin, (req, res)
       success: true,
       clearedEquipments: currentEquipmentsCount,
       clearedLocations: preserveLocations ? 0 : currentLocationsCount,
-      clearedExecutions: currentExecutionsCount
+      clearedExecutions: currentExecutionsCount,
     });
   } catch (e: any) {
     res.status(500).json({ success: false, error: e.message });
@@ -479,8 +585,10 @@ app.post('/api/database/clear-data', authenticateToken, requireAdmin, (req, res)
 });
 
 // Endpoint para restaurar los datos de demostración predeterminados en la base de datos
-app.post('/api/database/reset-to-default', authenticateToken, requireAdmin, (req, res) => {
+app.post('/api/database/reset-to-default', authenticateToken, requireAdmin, async (req, res) => {
   try {
+    await backupBeforeDestructiveOperation('pre-reset');
+
     db.transaction((tx) => {
       tx.delete(equipments).run();
       tx.delete(annualPlans).run();
@@ -497,25 +605,35 @@ app.post('/api/database/reset-to-default', authenticateToken, requireAdmin, (req
       }
 
       // Reinsertar edificios
-      tx.insert(buildings).values(INITIAL_BUILDINGS.map(name => ({ name }))).run();
+      tx.insert(buildings)
+        .values(INITIAL_BUILDINGS.map((name) => ({ name })))
+        .run();
 
       // Reinsertar ubicaciones
       tx.insert(locations).values(INITIAL_LOCATIONS).run();
 
       // Reinsertar equipos
-      tx.insert(equipments).values(INITIAL_EQUIPMENTS.map(e => ({
-        ...e,
-        parts: JSON.stringify(e.parts || []),
-        maintenanceTasks: JSON.stringify(e.maintenanceTasks || []),
-        customMonths: e.customMonths ? JSON.stringify(e.customMonths) : null
-      }))).run();
+      tx.insert(equipments)
+        .values(
+          INITIAL_EQUIPMENTS.map((e) => ({
+            ...e,
+            parts: JSON.stringify(e.parts || []),
+            maintenanceTasks: JSON.stringify(e.maintenanceTasks || []),
+            customMonths: e.customMonths ? JSON.stringify(e.customMonths) : null,
+          }))
+        )
+        .run();
 
       // Reinsertar ejecuciones
-      tx.insert(executions).values(INITIAL_EXECUTIONS_SEED.map(e => ({
-        ...e,
-        completedTasks: JSON.stringify(e.completedTasks || []),
-        partsReplaced: e.partsReplaced ? JSON.stringify(e.partsReplaced) : null
-      }))).run();
+      tx.insert(executions)
+        .values(
+          INITIAL_EXECUTIONS_SEED.map((e) => ({
+            ...e,
+            completedTasks: JSON.stringify(e.completedTasks || []),
+            partsReplaced: e.partsReplaced ? JSON.stringify(e.partsReplaced) : null,
+          }))
+        )
+        .run();
     });
 
     res.json({ success: true, message: 'Datos de demostración restaurados en la base de datos.' });
@@ -525,6 +643,48 @@ app.post('/api/database/reset-to-default', authenticateToken, requireAdmin, (req
 });
 
 // RUTAS DE GESTIÓN Y CONFIGURACIÓN DE BASE DE DATOS (SQLite / MySQL)
+
+// --- Copias de seguridad del archivo SQLite ---
+app.get('/api/database/backups', authenticateToken, requireAdmin, (req, res) => {
+  try {
+    res.json({ success: true, data: listBackups(), settings: getBackupSettings() });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.post('/api/database/backups', authenticateToken, requireAdmin, async (req, res) => {
+  const reason = typeof req.body?.reason === 'string' && req.body.reason.trim() ? req.body.reason : 'manual';
+  try {
+    const backup = await createBackup(reason);
+    res.status(201).json({ success: true, data: backup });
+  } catch (e: any) {
+    if (e instanceof BackupUnavailableError) {
+      return res.status(409).json({ success: false, error: e.message });
+    }
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.get('/api/database/backups/:filename', authenticateToken, requireAdmin, (req, res) => {
+  const fullPath = resolveBackupPath(req.params.filename);
+  if (!fullPath) {
+    return res.status(404).json({ success: false, error: 'Copia de seguridad no encontrada.' });
+  }
+  res.download(fullPath, req.params.filename);
+});
+
+app.delete('/api/database/backups/:filename', authenticateToken, requireAdmin, (req, res) => {
+  try {
+    if (!deleteBackup(req.params.filename)) {
+      return res.status(404).json({ success: false, error: 'Copia de seguridad no encontrada.' });
+    }
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 app.get('/api/database/config', authenticateToken, requireAdmin, (req, res) => {
   try {
     const config = getDbConfig();
@@ -538,14 +698,16 @@ app.get('/api/database/config', authenticateToken, requireAdmin, (req, res) => {
       totalExecutions: db.select().from(executions).all().length,
       totalPlans: db.select().from(annualPlans).all().length,
       totalUsers: db.select().from(users).all().length,
-      mysql: config.mysql ? {
-        host: config.mysql.host,
-        port: config.mysql.port,
-        user: config.mysql.user,
-        database: config.mysql.database,
-        ssl: Boolean(config.mysql.ssl),
-        hasPassword: Boolean(config.mysql.password)
-      } : null
+      mysql: config.mysql
+        ? {
+            host: config.mysql.host,
+            port: config.mysql.port,
+            user: config.mysql.user,
+            database: config.mysql.database,
+            ssl: Boolean(config.mysql.ssl),
+            hasPassword: Boolean(config.mysql.password),
+          }
+        : null,
     };
     res.json({ success: true, config, stats });
   } catch (err: any) {
@@ -556,7 +718,9 @@ app.get('/api/database/config', authenticateToken, requireAdmin, (req, res) => {
 app.post('/api/database/test-connection', authenticateToken, requireAdmin, async (req, res) => {
   const { host, port, user, password, database, ssl } = req.body;
   if (!host || !user || !database) {
-    return res.status(400).json({ success: false, message: 'Host, usuario y base de datos son obligatorios.' });
+    return res
+      .status(400)
+      .json({ success: false, message: 'Host, usuario y base de datos son obligatorios.' });
   }
 
   const result = await testMysqlConnection({
@@ -565,7 +729,7 @@ app.post('/api/database/test-connection', authenticateToken, requireAdmin, async
     user,
     password,
     database,
-    ssl: Boolean(ssl)
+    ssl: Boolean(ssl),
   });
 
   res.json(result);
@@ -581,14 +745,16 @@ app.post('/api/database/save-config', authenticateToken, requireAdmin, (req, res
   const updated = {
     ...current,
     engine,
-    mysql: mysqlConfig ? {
-      host: mysqlConfig.host,
-      port: Number(mysqlConfig.port) || 3306,
-      user: mysqlConfig.user,
-      password: mysqlConfig.password !== undefined ? mysqlConfig.password : (current.mysql?.password || ''),
-      database: mysqlConfig.database,
-      ssl: Boolean(mysqlConfig.ssl)
-    } : current.mysql
+    mysql: mysqlConfig
+      ? {
+          host: mysqlConfig.host,
+          port: Number(mysqlConfig.port) || 3306,
+          user: mysqlConfig.user,
+          password: mysqlConfig.password !== undefined ? mysqlConfig.password : current.mysql?.password || '',
+          database: mysqlConfig.database,
+          ssl: Boolean(mysqlConfig.ssl),
+        }
+      : current.mysql,
   };
 
   saveDbConfig(updated);
@@ -602,13 +768,15 @@ app.post('/api/database/migrate-to-mysql', authenticateToken, requireAdmin, asyn
     host: host || current.mysql?.host,
     port: Number(port) || current.mysql?.port || 3306,
     user: user || current.mysql?.user,
-    password: password !== undefined ? password : (current.mysql?.password || ''),
+    password: password !== undefined ? password : current.mysql?.password || '',
     database: database || current.mysql?.database,
-    ssl: ssl !== undefined ? Boolean(ssl) : Boolean(current.mysql?.ssl)
+    ssl: ssl !== undefined ? Boolean(ssl) : Boolean(current.mysql?.ssl),
   };
 
   if (!targetConfig.host || !targetConfig.user || !targetConfig.database) {
-    return res.status(400).json({ success: false, message: 'Parámetros de MySQL incompletos para ejecutar la migración.' });
+    return res
+      .status(400)
+      .json({ success: false, message: 'Parámetros de MySQL incompletos para ejecutar la migración.' });
   }
 
   const migrationResult = await migrateSqliteToMysql(targetConfig);
@@ -617,7 +785,7 @@ app.post('/api/database/migrate-to-mysql', authenticateToken, requireAdmin, asyn
     saveDbConfig({
       engine: 'mysql',
       sqlitePath: sqliteFilePath,
-      mysql: targetConfig
+      mysql: targetConfig,
     });
   }
 
@@ -632,7 +800,10 @@ const MAX_LOGO_BYTES = 5 * 1024 * 1024; // 5 MB
 function detectImageMime(buffer: Buffer): string | null {
   if (
     buffer.length >= 8 &&
-    buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47
   ) {
     return 'image/png';
   }
@@ -659,7 +830,7 @@ app.get('/api/logo', (req, res) => {
           success: true,
           hasCustomLogo: true,
           logoUrl: '/api/logo/image',
-          ...meta
+          ...meta,
         });
       }
     }
@@ -669,7 +840,7 @@ app.get('/api/logo', (req, res) => {
   res.json({
     success: true,
     hasCustomLogo: false,
-    logoUrl: null
+    logoUrl: null,
   });
 });
 
@@ -701,7 +872,7 @@ app.post('/api/logo', authenticateToken, requireAdmin, (req: any, res: any) => {
   if (!ALLOWED_LOGO_EXTENSIONS.has(extension) || !ALLOWED_LOGO_MIME_TYPES.has(declaredMime)) {
     return res.status(400).json({
       success: false,
-      error: 'Formato de logo no permitido. Use PNG, JPG o WEBP.'
+      error: 'Formato de logo no permitido. Use PNG, JPG o WEBP.',
     });
   }
 
@@ -712,7 +883,7 @@ app.post('/api/logo', authenticateToken, requireAdmin, (req: any, res: any) => {
     if (buffer.length === 0 || buffer.length > MAX_LOGO_BYTES) {
       return res.status(400).json({
         success: false,
-        error: 'El logo supera el tamaño máximo permitido (5 MB).'
+        error: 'El logo supera el tamaño máximo permitido (5 MB).',
       });
     }
 
@@ -720,7 +891,7 @@ app.post('/api/logo', authenticateToken, requireAdmin, (req: any, res: any) => {
     if (!detectedMime || detectedMime !== declaredMime) {
       return res.status(400).json({
         success: false,
-        error: 'El contenido del archivo no corresponde a una imagen PNG, JPG o WEBP válida.'
+        error: 'El contenido del archivo no corresponde a una imagen PNG, JPG o WEBP válida.',
       });
     }
 
@@ -732,11 +903,17 @@ app.post('/api/logo', authenticateToken, requireAdmin, (req: any, res: any) => {
       originalName: filename,
       mimeType: declaredMime,
       uploadedAt: new Date().toISOString(),
-      uploadedBy: req.user?.username
+      uploadedBy: req.user?.username,
     };
     fs.writeFileSync(META_FILE, JSON.stringify(meta, null, 2));
-    res.json({ success: true, message: 'Logo actualizado correctamente', hasCustomLogo: true, logoUrl: '/api/logo/image', ...meta });
-  } catch (error) {
+    res.json({
+      success: true,
+      message: 'Logo actualizado correctamente',
+      hasCustomLogo: true,
+      logoUrl: '/api/logo/image',
+      ...meta,
+    });
+  } catch {
     res.status(500).json({ success: false, error: 'Error al guardar logo' });
   }
 });
@@ -750,7 +927,7 @@ app.delete('/api/logo', authenticateToken, requireAdmin, (req: any, res: any) =>
       fs.unlinkSync(META_FILE);
     }
     res.json({ success: true, message: 'Logo eliminado correctamente' });
-  } catch (error) {
+  } catch {
     res.status(500).json({ success: false, error: 'Error al eliminar logo' });
   }
 });
@@ -758,10 +935,10 @@ app.delete('/api/logo', authenticateToken, requireAdmin, (req: any, res: any) =>
 // Endpoint de Reconocimiento Inteligente de Placas y Etiquetas con Gemini Vision
 let aiClient: GoogleGenAI | null = null;
 function getGenAI(): GoogleGenAI | null {
-  if (!process.env.GEMINI_API_KEY) return null;
+  if (!env.geminiApiKey) return null;
   if (!aiClient) {
     aiClient = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
+      apiKey: env.geminiApiKey,
       httpOptions: {
         headers: {
           'User-Agent': 'aistudio-build',
@@ -811,7 +988,7 @@ INSTRUCCIONES CLAVE DE EXTRACCIÓN:
       'gemini-3.8-flash',
       'gemini-3.1-pro-preview',
       'gemini-3.1-flash-lite',
-      'gemini-flash-latest'
+      'gemini-flash-latest',
     ];
     let response: any = null;
 
@@ -853,15 +1030,19 @@ INSTRUCCIONES CLAVE DE EXTRACCIÓN:
         if (response && response.text) {
           break;
         }
-      } catch (err: any) {
-        console.log(`[Plate Scanner] Modelo ${candidateModel} ocupado temporalmente. Probando alternativo...`);
+      } catch {
+        console.log(
+          `[Plate Scanner] Modelo ${candidateModel} ocupado temporalmente. Probando alternativo...`
+        );
         // Pausa breve para mitigar picos de concurrencia
         await new Promise((r) => setTimeout(r, 350));
       }
     }
 
     if (!response || !response.text) {
-      console.log('[Plate Scanner] Modelos de IA con alta demanda temporal; activando respaldo transparente con OCR local.');
+      console.log(
+        '[Plate Scanner] Modelos de IA con alta demanda temporal; activando respaldo transparente con OCR local.'
+      );
       return res.status(200).json({
         success: false,
         fallbackToLocal: true,
@@ -875,7 +1056,7 @@ INSTRUCCIONES CLAVE DE EXTRACCIÓN:
       data: parsedJson,
       source: 'gemini_vision',
     });
-  } catch (err: any) {
+  } catch {
     console.log('[Plate Scanner] Respaldo a OCR local activado.');
     return res.status(200).json({
       success: false,
@@ -897,17 +1078,27 @@ app.use((err: any, req: any, res: any, next: any) => {
   res.status(500).json({ success: false, error: 'Error interno del servidor' });
 });
 
-async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
+export async function startServer() {
+  // Copias automáticas de la base SQLite (se desactivan solas en memoria).
+  startAutomaticBackups();
+
+  if (!env.isProduction) {
+    // Carga dinámica: las pruebas no necesitan el servidor de Vite.
+    const { createServer: createViteServer } = await import('vite');
+    const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*all', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
   }
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+
+  return app.listen(env.port, '0.0.0.0', () => {
+    console.log(`Server running on http://localhost:${env.port}`);
   });
 }
-startServer();
+
+// En pruebas se importa la app directamente; nunca se abre un puerto.
+if (!env.isTest) {
+  startServer();
+}

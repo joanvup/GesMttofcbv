@@ -5,15 +5,15 @@ export const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  
+
   const [formData, setFormData] = useState({
     username: '',
     name: '',
     role: 'revisor',
-    password: ''
+    password: '',
   });
 
   const token = localStorage.getItem('fcbv_token');
@@ -22,7 +22,7 @@ export const UserManagement: React.FC = () => {
     try {
       setLoading(true);
       const res = await fetch('/api/users', {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (data.success) {
@@ -30,7 +30,7 @@ export const UserManagement: React.FC = () => {
       } else {
         setError(data.message || 'Error al cargar usuarios');
       }
-    } catch (err) {
+    } catch {
       setError('Error de conexión');
     } finally {
       setLoading(false);
@@ -48,7 +48,7 @@ export const UserManagement: React.FC = () => {
       username: user.username,
       name: user.name,
       role: user.role,
-      password: '' // Don't pre-fill password
+      password: '', // Don't pre-fill password
     });
   };
 
@@ -57,7 +57,7 @@ export const UserManagement: React.FC = () => {
     try {
       const res = await fetch(`/api/users/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (data.success) {
@@ -65,7 +65,7 @@ export const UserManagement: React.FC = () => {
       } else {
         alert(data.message);
       }
-    } catch (err) {
+    } catch {
       alert('Error al eliminar');
     }
   };
@@ -75,16 +75,16 @@ export const UserManagement: React.FC = () => {
     try {
       const url = isEditing ? `/api/users/${currentUser.id}` : '/api/users';
       const method = isEditing ? 'PUT' : 'POST';
-      
+
       const res = await fetch(url, {
         method,
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(formData),
       });
-      
+
       const data = await res.json();
       if (data.success) {
         setIsEditing(false);
@@ -94,7 +94,7 @@ export const UserManagement: React.FC = () => {
       } else {
         alert(data.message);
       }
-    } catch (err) {
+    } catch {
       alert('Error al guardar');
     }
   };
@@ -118,7 +118,7 @@ export const UserManagement: React.FC = () => {
           </p>
         </div>
         {!isEditing && (
-          <button 
+          <button
             onClick={() => setIsEditing(true)}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-semibold"
           >
@@ -128,11 +128,7 @@ export const UserManagement: React.FC = () => {
         )}
       </div>
 
-      {error && (
-        <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">
-          {error}
-        </div>
-      )}
+      {error && <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">{error}</div>}
 
       {isEditing && (
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-4">
@@ -148,44 +144,49 @@ export const UserManagement: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Nombre Completo</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   required
                   value={formData.name}
-                  onChange={e => setFormData({...formData, name: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                   placeholder="Ej. Juan Pérez"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Usuario (Login)</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   required
                   value={formData.username}
-                  onChange={e => setFormData({...formData, username: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                   placeholder="Ej. juan.perez"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Contraseña {currentUser && <span className="text-slate-400 text-xs font-normal">(Dejar en blanco para no cambiar)</span>}
+                  Contraseña{' '}
+                  {currentUser && (
+                    <span className="text-slate-400 text-xs font-normal">
+                      (Dejar en blanco para no cambiar)
+                    </span>
+                  )}
                 </label>
-                <input 
-                  type="password" 
+                <input
+                  type="password"
                   required={!currentUser}
                   value={formData.password}
-                  onChange={e => setFormData({...formData, password: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                   placeholder="********"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Rol</label>
-                <select 
+                <select
                   value={formData.role}
-                  onChange={e => setFormData({...formData, role: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
                 >
                   <option value="admin">Administrador (Acceso total)</option>
@@ -194,14 +195,14 @@ export const UserManagement: React.FC = () => {
               </div>
             </div>
             <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={resetForm}
                 className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
               >
                 Cancelar
               </button>
-              <button 
+              <button
                 type="submit"
                 className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-2"
               >
@@ -224,44 +225,48 @@ export const UserManagement: React.FC = () => {
                   <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">Nombre</th>
                   <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">Usuario</th>
                   <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">Rol</th>
-                  <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase text-right">Acciones</th>
+                  <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase text-right">
+                    Acciones
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {users.map(u => (
+                {users.map((u) => (
                   <tr key={u.id} className="hover:bg-slate-50">
                     <td className="px-6 py-4">
                       <div className="font-semibold text-slate-800">{u.name}</div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-600">
-                      {u.username}
-                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-600">{u.username}</td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
-                        u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-sky-100 text-sky-700'
-                      }`}>
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
+                          u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-sky-100 text-sky-700'
+                        }`}
+                      >
                         {u.role === 'admin' ? <Shield className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
                         {u.role === 'admin' ? 'Admin' : 'Revisor'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button 
+                        <button
                           onClick={() => handleEdit(u)}
                           className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded"
                           title="Editar"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDelete(u.id)}
                           disabled={u.username === 'admin'}
                           className={`p-1.5 rounded ${
-                            u.username === 'admin' 
-                              ? 'text-slate-300 cursor-not-allowed' 
+                            u.username === 'admin'
+                              ? 'text-slate-300 cursor-not-allowed'
                               : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
                           }`}
-                          title={u.username === 'admin' ? 'No se puede eliminar al admin principal' : 'Eliminar'}
+                          title={
+                            u.username === 'admin' ? 'No se puede eliminar al admin principal' : 'Eliminar'
+                          }
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

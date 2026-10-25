@@ -1,19 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  X, 
-  Calendar, 
-  CheckSquare, 
-  Square, 
-  Check, 
-  AlertCircle, 
-  User, 
-  PenTool, 
-  Clock, 
-  Wrench,
-  Layers,
-  FileCheck2,
-  CalendarCheck
-} from 'lucide-react';
+import { X, CheckSquare, Square, Check, AlertCircle, Wrench, FileCheck2, CalendarCheck } from 'lucide-react';
 import { Equipment, MaintenanceExecution } from '../../types';
 import { MONTH_NAMES, isBusinessDay, getFirstBusinessDayOfMonth } from '../../services/storage';
 import { SignaturePad } from '../SignaturePad';
@@ -98,14 +84,18 @@ export const ExecutionModal: React.FC<ExecutionModalProps> = ({
       const selYear = parseInt(parts[0], 10);
       const selMonth = parseInt(parts[1], 10);
       if (selYear !== year || selMonth !== month) {
-        setDateWarning(`Atención: La fecha debe corresponder al mes de ${MONTH_NAMES[month - 1]} de ${year}.`);
+        setDateWarning(
+          `Atención: La fecha debe corresponder al mes de ${MONTH_NAMES[month - 1]} de ${year}.`
+        );
         return;
       }
     }
 
     // Verificar si es día hábil (lunes a viernes)
     if (!isBusinessDay(newDate)) {
-      setDateWarning('⚠️ La fecha seleccionada es fin de semana (sábado o domingo). Debe ser un día hábil (lunes a viernes).');
+      setDateWarning(
+        '⚠️ La fecha seleccionada es fin de semana (sábado o domingo). Debe ser un día hábil (lunes a viernes).'
+      );
     } else {
       setDateWarning('');
     }
@@ -158,7 +148,9 @@ export const ExecutionModal: React.FC<ExecutionModalProps> = ({
         return;
       }
       if (!signatureDataUrl) {
-        setErrorMsg('Es requerida la firma digital del responsable para registrar el mantenimiento como ejecutado.');
+        setErrorMsg(
+          'Es requerida la firma digital del responsable para registrar el mantenimiento como ejecutado.'
+        );
         return;
       }
     }
@@ -204,9 +196,7 @@ export const ExecutionModal: React.FC<ExecutionModalProps> = ({
                   {MONTH_NAMES[month - 1]} {year}
                 </span>
               </div>
-              <h3 className="text-base font-bold text-slate-800 mt-1">
-                {equipment.name}
-              </h3>
+              <h3 className="text-base font-bold text-slate-800 mt-1">{equipment.name}</h3>
               <p className="text-xs text-slate-500">{equipment.location}</p>
             </div>
           </div>
@@ -258,11 +248,13 @@ export const ExecutionModal: React.FC<ExecutionModalProps> = ({
               <p className="text-xs text-amber-700 bg-amber-50 p-2 rounded border border-amber-200">
                 {dateWarning}
               </p>
-            ) : scheduledDate && (
-              <p className="text-[11px] text-emerald-700 font-medium flex items-center gap-1">
-                <Check className="w-3.5 h-3.5" />
-                Día hábil válido (lunes a viernes).
-              </p>
+            ) : (
+              scheduledDate && (
+                <p className="text-[11px] text-emerald-700 font-medium flex items-center gap-1">
+                  <Check className="w-3.5 h-3.5" />
+                  Día hábil válido (lunes a viernes).
+                </p>
+              )
             )}
           </div>
 
@@ -271,7 +263,8 @@ export const ExecutionModal: React.FC<ExecutionModalProps> = ({
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                 <Wrench className="w-4 h-4 text-indigo-600" />
-                Checklist de Tareas de Mantenimiento ({completedTasks.length} / {equipment.maintenanceTasks.length})
+                Checklist de Tareas de Mantenimiento ({completedTasks.length} /{' '}
+                {equipment.maintenanceTasks.length})
               </label>
               <button
                 type="button"
@@ -415,9 +408,16 @@ export const ExecutionModal: React.FC<ExecutionModalProps> = ({
                   {partsReplaced.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {partsReplaced.map((p, i) => (
-                        <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] bg-white border border-slate-200 rounded">
+                        <span
+                          key={i}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] bg-white border border-slate-200 rounded"
+                        >
                           {p}
-                          <button type="button" onClick={() => handleRemovePartReplaced(i)} className="text-slate-400 hover:text-red-600">
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePartReplaced(i)}
+                            className="text-slate-400 hover:text-red-600"
+                          >
                             ×
                           </button>
                         </span>

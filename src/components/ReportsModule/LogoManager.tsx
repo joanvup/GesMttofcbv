@@ -62,12 +62,12 @@ export const LogoManager: React.FC = () => {
         try {
           const base64 = reader.result as string;
           const token = localStorage.getItem('fcbv_token');
-          
+
           const res = await fetch('/api/logo', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
             body: JSON.stringify({
               imageBase64: base64,
@@ -108,7 +108,11 @@ export const LogoManager: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (!confirm('¿Estás seguro de que deseas eliminar el logo personalizado y restablecer el escudo por defecto?')) {
+    if (
+      !confirm(
+        '¿Estás seguro de que deseas eliminar el logo personalizado y restablecer el escudo por defecto?'
+      )
+    ) {
       return;
     }
 
@@ -119,7 +123,7 @@ export const LogoManager: React.FC = () => {
       const res = await fetch('/api/logo', {
         method: 'DELETE',
         headers: {
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
       if (!res.ok) {
@@ -142,7 +146,7 @@ export const LogoManager: React.FC = () => {
         <ImageIcon className="w-4 h-4 text-indigo-600" />
         Logo Institucional
       </h3>
-      
+
       {error && (
         <div className="mb-3 p-2 bg-red-50 text-red-700 rounded-lg text-[11px] flex items-start gap-1.5 border border-red-100">
           <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
@@ -158,7 +162,11 @@ export const LogoManager: React.FC = () => {
           ) : logoData?.hasCustomLogo && logoData.logoUrl ? (
             <img src={logoData.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
           ) : (
-            <div className="text-[10px] text-slate-400 text-center font-medium leading-tight">Escudo<br/>FCBV</div>
+            <div className="text-[10px] text-slate-400 text-center font-medium leading-tight">
+              Escudo
+              <br />
+              FCBV
+            </div>
           )}
         </div>
 
@@ -181,10 +189,14 @@ export const LogoManager: React.FC = () => {
               disabled={uploading || loading}
               className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-lg border border-indigo-200 transition-colors flex items-center gap-1.5 disabled:opacity-50"
             >
-              {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+              {uploading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Upload className="w-3.5 h-3.5" />
+              )}
               Subir Logo
             </button>
-            
+
             {logoData?.hasCustomLogo && (
               <button
                 type="button"

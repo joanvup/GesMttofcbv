@@ -1,13 +1,5 @@
 import React, { useState } from 'react';
-import { 
-  X, 
-  Trash2, 
-  AlertTriangle, 
-  ArrowRight, 
-  Server,
-  MapPin,
-  Check
-} from 'lucide-react';
+import { X, Trash2, AlertTriangle, MapPin } from 'lucide-react';
 import { CampusLocation, Equipment } from '../../types';
 
 interface LocationDeleteModalProps {
@@ -37,15 +29,10 @@ export const LocationDeleteModal: React.FC<LocationDeleteModalProps> = ({
   );
 
   // Otras ubicaciones activas disponibles para reasignar
-  const availableLocations = allLocations.filter(
-    (l) => l.id !== location.id && l.status === 'activa'
-  );
+  const availableLocations = allLocations.filter((l) => l.id !== location.id && l.status === 'activa');
 
   const handleDelete = () => {
-    onConfirmDelete(
-      location.id,
-      reassignTarget.trim() ? reassignTarget : undefined
-    );
+    onConfirmDelete(location.id, reassignTarget.trim() ? reassignTarget : undefined);
     onClose();
   };
 
@@ -59,9 +46,7 @@ export const LocationDeleteModal: React.FC<LocationDeleteModalProps> = ({
               <Trash2 className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-800">
-                Eliminar Ubicación
-              </h3>
+              <h3 className="text-base font-bold text-slate-800">Eliminar Ubicación</h3>
               <p className="text-xs text-rose-700 font-medium">
                 Acción permanente sobre el catálogo de ubicaciones
               </p>
@@ -93,11 +78,16 @@ export const LocationDeleteModal: React.FC<LocationDeleteModalProps> = ({
                 <AlertTriangle className="w-4 h-4 mt-0.5 text-amber-600 shrink-0" />
                 <div>
                   <span className="font-bold block">
-                    ¡Atención! Hay {affectedEquipments.length} {affectedEquipments.length === 1 ? 'equipo registrado' : 'equipos registrados'} en este espacio:
+                    ¡Atención! Hay {affectedEquipments.length}{' '}
+                    {affectedEquipments.length === 1 ? 'equipo registrado' : 'equipos registrados'} en este
+                    espacio:
                   </span>
                   <div className="flex flex-wrap gap-1 mt-1.5">
                     {affectedEquipments.map((eq) => (
-                      <span key={eq.id} className="font-mono text-[10px] bg-white border border-amber-300 px-1.5 py-0.5 rounded font-bold text-slate-800">
+                      <span
+                        key={eq.id}
+                        className="font-mono text-[10px] bg-white border border-amber-300 px-1.5 py-0.5 rounded font-bold text-slate-800"
+                      >
                         {eq.code}
                       </span>
                     ))}
@@ -127,7 +117,8 @@ export const LocationDeleteModal: React.FC<LocationDeleteModalProps> = ({
             </div>
           ) : (
             <p className="text-slate-600">
-              Esta ubicación no tiene ningún equipo crítico asignado actualmente. Puede eliminarse de forma segura.
+              Esta ubicación no tiene ningún equipo crítico asignado actualmente. Puede eliminarse de forma
+              segura.
             </p>
           )}
 

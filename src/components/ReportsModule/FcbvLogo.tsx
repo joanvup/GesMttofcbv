@@ -44,7 +44,12 @@ export const FcbvLogo: React.FC<FcbvLogoProps> = ({ className = '', size = 76 })
   }, []);
 
   if (loading) {
-    return <div style={{ width: size, height: size }} className={`shrink-0 ${className} animate-pulse bg-slate-100 rounded-full`} />;
+    return (
+      <div
+        style={{ width: size, height: size }}
+        className={`shrink-0 ${className} animate-pulse bg-slate-100 rounded-full`}
+      />
+    );
   }
 
   if (logoUrl) {
@@ -69,16 +74,8 @@ export const FcbvLogo: React.FC<FcbvLogoProps> = ({ className = '', size = 76 })
     >
       <defs>
         {/* Curvas para el texto circular */}
-        <path
-          id="fcbv-top-arc"
-          d="M 16,60 A 44,44 0 1,1 104,60"
-          fill="none"
-        />
-        <path
-          id="fcbv-bottom-arc"
-          d="M 104,60 A 44,44 0 0,1 16,60"
-          fill="none"
-        />
+        <path id="fcbv-top-arc" d="M 16,60 A 44,44 0 1,1 104,60" fill="none" />
+        <path id="fcbv-bottom-arc" d="M 104,60 A 44,44 0 0,1 16,60" fill="none" />
       </defs>
 
       {/* Círculo exterior azul institucional */}
@@ -87,28 +84,16 @@ export const FcbvLogo: React.FC<FcbvLogoProps> = ({ className = '', size = 76 })
 
       {/* Anillo de texto */}
       <circle cx="60" cy="60" r="45" fill="#1b2a56" stroke="#ffffff" strokeWidth="0.8" />
-      
+
       {/* Texto circular superior */}
-      <text
-        fill="#ffffff"
-        fontSize="7.4"
-        fontWeight="bold"
-        letterSpacing="0.6"
-        fontFamily="sans-serif"
-      >
+      <text fill="#ffffff" fontSize="7.4" fontWeight="bold" letterSpacing="0.6" fontFamily="sans-serif">
         <textPath href="#fcbv-top-arc" startOffset="50%" textAnchor="middle">
           FUNDACION COLEGIO BILINGUE
         </textPath>
       </text>
 
       {/* Texto circular inferior */}
-      <text
-        fill="#ffffff"
-        fontSize="6.8"
-        fontWeight="bold"
-        letterSpacing="1"
-        fontFamily="sans-serif"
-      >
+      <text fill="#ffffff" fontSize="6.8" fontWeight="bold" letterSpacing="1" fontFamily="sans-serif">
         <textPath href="#fcbv-bottom-arc" startOffset="50%" textAnchor="middle">
           • FOUNDED 1980 •
         </textPath>
@@ -132,40 +117,17 @@ export const FcbvLogo: React.FC<FcbvLogoProps> = ({ className = '', size = 76 })
         <line x1="5" y1="28" x2="55" y2="28" stroke="#1b2a56" strokeWidth="2" />
 
         {/* Cuadrante 1: Libro abierto del saber */}
-        <path
-          d="M 11,18 Q 18,15 25,18 L 25,23 Q 18,20 11,23 Z"
-          fill="#1b2a56"
-        />
-        <path
-          d="M 25,18 Q 21,15 15,17"
-          stroke="#ffffff"
-          strokeWidth="0.8"
-          fill="none"
-        />
+        <path d="M 11,18 Q 18,15 25,18 L 25,23 Q 18,20 11,23 Z" fill="#1b2a56" />
+        <path d="M 25,18 Q 21,15 15,17" stroke="#ffffff" strokeWidth="0.8" fill="none" />
         <line x1="18" y1="17" x2="18" y2="22" stroke="#ffffff" strokeWidth="0.8" />
 
         {/* Cuadrante 2: Pluma / Antorcha del conocimiento */}
-        <path
-          d="M 46,12 L 35,23 L 38,24 L 49,13 Z"
-          fill="#d4af37"
-          stroke="#1b2a56"
-          strokeWidth="0.8"
-        />
+        <path d="M 46,12 L 35,23 L 38,24 L 49,13 Z" fill="#d4af37" stroke="#1b2a56" strokeWidth="0.8" />
         <circle cx="48" cy="11" r="2.5" fill="#e11d48" />
 
         {/* Cuadrante 3: Camino hacia el horizonte / Olas */}
-        <path
-          d="M 10,40 Q 20,36 26,42"
-          stroke="#1b2a56"
-          strokeWidth="1.8"
-          fill="none"
-        />
-        <path
-          d="M 12,46 Q 20,42 26,48"
-          stroke="#1b2a56"
-          strokeWidth="1.8"
-          fill="none"
-        />
+        <path d="M 10,40 Q 20,36 26,42" stroke="#1b2a56" strokeWidth="1.8" fill="none" />
+        <path d="M 12,46 Q 20,42 26,48" stroke="#1b2a56" strokeWidth="1.8" fill="none" />
 
         {/* Cuadrante 4: Laurel / Estrella de excelencia */}
         <polygon

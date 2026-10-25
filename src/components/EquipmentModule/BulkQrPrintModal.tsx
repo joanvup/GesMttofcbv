@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { X, Printer, CheckSquare, Square, Filter, Search, MapPin, Sliders, RefreshCw, Copy } from 'lucide-react';
+import { X, Printer, CheckSquare, Square, Filter, Search, MapPin, Sliders, RefreshCw } from 'lucide-react';
 import { Equipment, CampusLocation } from '../../types';
 import QRCode from 'qrcode';
 
@@ -294,7 +294,6 @@ export const BulkQrPrintModal: React.FC<BulkQrPrintModalProps> = ({
 
       {/* Contenedor Modal */}
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        
         {/* Modal Header */}
         <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
@@ -323,10 +322,8 @@ export const BulkQrPrintModal: React.FC<BulkQrPrintModalProps> = ({
 
         {/* Modal Body: Split en 2 columnas (Configuración/Selección + Vista Previa) */}
         <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-0">
-          
           {/* Panel Izquierdo: Configuración y Selección (5 Cols) */}
           <div className="lg:col-span-5 border-r border-slate-200 p-4 sm:p-5 overflow-y-auto bg-slate-50/50 space-y-4">
-            
             {/* 1. Ajustes del Formato de Etiqueta */}
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 uppercase tracking-wider">
@@ -449,7 +446,9 @@ export const BulkQrPrintModal: React.FC<BulkQrPrintModalProps> = ({
               {/* Filtro por Ubicación y Estado */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">Ubicación:</label>
+                  <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                    Ubicación:
+                  </label>
                   <select
                     value={selectedLocation}
                     onChange={(e) => setSelectedLocation(e.target.value)}
@@ -465,7 +464,9 @@ export const BulkQrPrintModal: React.FC<BulkQrPrintModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">Estado:</label>
+                  <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                    Estado:
+                  </label>
                   <select
                     value={selectedStatus}
                     onChange={(e) => setSelectedStatus(e.target.value as 'activos' | 'todos')}
@@ -502,7 +503,9 @@ export const BulkQrPrintModal: React.FC<BulkQrPrintModalProps> = ({
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
               <div className="px-3 py-2 bg-slate-100/70 border-b border-slate-200 text-[11px] font-bold text-slate-600 flex justify-between items-center">
                 <span>Equipos ({filteredEquipments.length})</span>
-                <span className="text-[10px] font-normal text-slate-500">Selecciona los que desees imprimir</span>
+                <span className="text-[10px] font-normal text-slate-500">
+                  Selecciona los que desees imprimir
+                </span>
               </div>
               <div className="max-h-52 overflow-y-auto divide-y divide-slate-100">
                 {filteredEquipments.length > 0 ? (
@@ -544,7 +547,6 @@ export const BulkQrPrintModal: React.FC<BulkQrPrintModalProps> = ({
                 )}
               </div>
             </div>
-
           </div>
 
           {/* Panel Derecho: Vista Previa Real de las Etiquetas (7 Cols) */}
@@ -568,7 +570,6 @@ export const BulkQrPrintModal: React.FC<BulkQrPrintModalProps> = ({
 
             {/* Contenedor con Scroll de la Vista Previa */}
             <div className="flex-1 overflow-y-auto bg-slate-200/80 rounded-xl p-4 border border-slate-300 flex flex-col items-center">
-              
               {/* Estructura que se imprimirá exactamente */}
               <div
                 id="qr-thermal-print-container"
@@ -588,8 +589,8 @@ export const BulkQrPrintModal: React.FC<BulkQrPrintModalProps> = ({
                           labelFormat === 'ticket-58'
                             ? 'ticket-58-label w-52 p-3 rounded-md'
                             : labelFormat === 'ticket-80'
-                            ? 'ticket-80-label w-64 p-4 rounded-md'
-                            : 'grid-sheet-label p-3 rounded-md'
+                              ? 'ticket-80-label w-64 p-4 rounded-md'
+                              : 'grid-sheet-label p-3 rounded-md'
                         }`}
                       >
                         {/* 1. ENCABEZADO (Sin "Mantenimiento Preventivo", sólo el encabezado institucional) */}
@@ -631,11 +632,12 @@ export const BulkQrPrintModal: React.FC<BulkQrPrintModalProps> = ({
             <div className="mt-3 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-900 flex items-start gap-2 shrink-0">
               <span className="font-bold">Tip de Impresión:</span>
               <span>
-                En la ventana del navegador que se abrirá al dar clic en <b>Imprimir</b>, selecciona tu impresora térmica de tickets y ajusta los <b>Márgenes</b> en "Ninguno" para un corte limpio entre etiquetas.
+                En la ventana del navegador que se abrirá al dar clic en <b>Imprimir</b>, selecciona tu
+                impresora térmica de tickets y ajusta los <b>Márgenes</b> en "Ninguno" para un corte limpio
+                entre etiquetas.
               </span>
             </div>
           </div>
-
         </div>
 
         {/* Modal Footer */}
@@ -663,7 +665,6 @@ export const BulkQrPrintModal: React.FC<BulkQrPrintModalProps> = ({
             </button>
           </div>
         </div>
-
       </div>
     </div>
   );

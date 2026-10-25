@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  X, 
-  Camera, 
-  FlipHorizontal, 
-  Search, 
-  Wrench, 
-  AlertTriangle, 
-  CheckCircle2, 
-  Plus, 
-  Upload, 
-  Loader2, 
+import {
+  X,
+  Camera,
+  FlipHorizontal,
+  Search,
+  Wrench,
+  AlertTriangle,
+  CheckCircle2,
+  Plus,
+  Upload,
+  Loader2,
   ScanLine,
   ShieldAlert,
   Tag,
@@ -18,11 +18,8 @@ import {
   FileText,
   ChevronDown,
   ChevronUp,
-  Cpu,
-  Barcode,
-  Image as ImageIcon,
   Sparkles,
-  ShieldCheck
+  ShieldCheck,
 } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Equipment, CampusLocation, PlateOcrResult } from '../../types';
@@ -50,7 +47,7 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
   isOpen,
   onClose,
   equipments,
-  locations = [],
+  locations: _locations = [],
   onSelectEquipmentForCorrective,
   onSelectEquipmentForPreventive,
   onViewEquipmentDetails,
@@ -100,7 +97,7 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
       onEquipmentIdentified(equipment, 'view');
     }
   };
-  
+
   // Scanner state (Cámara en vivo)
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -116,7 +113,9 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
   const [uploadedImagePreview, setUploadedImagePreview] = useState<string | null>(null);
   const [currentUploadedFile, setCurrentUploadedFile] = useState<File | null>(null);
   const [detectedAngle, setDetectedAngle] = useState<number>(0);
-  const [detectionSource, setDetectionSource] = useState<'barcode' | 'ocr' | 'hybrid' | 'gemini_vision' | null>(null);
+  const [detectionSource, setDetectionSource] = useState<
+    'barcode' | 'ocr' | 'hybrid' | 'gemini_vision' | null
+  >(null);
   const [showRawOcrText, setShowRawOcrText] = useState(false);
 
   // Campos estructurados de la etiqueta
@@ -188,7 +187,9 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
     } catch (err: any) {
       console.warn('Error al activar cámara para foto OCR:', err);
       setOcrCameraActive(false);
-      setCameraError('No se pudo acceder a la cámara en vivo. Puedes subir una foto de la etiqueta o verificar los permisos en el navegador.');
+      setCameraError(
+        'No se pudo acceder a la cámara en vivo. Puedes subir una foto de la etiqueta o verificar los permisos en el navegador.'
+      );
     }
   };
 
@@ -324,7 +325,7 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
         detectedCode: parsed.code || rawCode,
         detectedSerial: parsed.serial || rawCode,
       });
-      setEditablePlateFields(prev => ({
+      setEditablePlateFields((prev) => ({
         ...prev,
         code: parsed.code || rawCode,
         serial: parsed.serial || rawCode,
@@ -352,7 +353,13 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
     setHasSearched(false);
 
     try {
-      const { plateInfo, source, barcodeDetected, detectedAngle: autoAngle, correctedDataUrl } = await processPlateRecognition(
+      const {
+        plateInfo,
+        source,
+        barcodeDetected,
+        detectedAngle: autoAngle,
+        correctedDataUrl,
+      } = await processPlateRecognition(
         file,
         base64,
         (status) => setOcrLoadingMessage(status),
@@ -380,7 +387,9 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
 
       // Cruzar con equipos existentes en la base de datos
       const targetSearch = initialFields.code || initialFields.serial || initialFields.model || '';
-      const found = targetSearch ? StorageService.findEquipmentByCodeOrSerial(targetSearch, equipments) : undefined;
+      const found = targetSearch
+        ? StorageService.findEquipmentByCodeOrSerial(targetSearch, equipments)
+        : undefined;
 
       if (found) {
         setMatchedEquipment(found);
@@ -389,7 +398,9 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
       }
     } catch (err: any) {
       console.warn('Aviso al procesar OCR de imagen:', err);
-      setCameraError('No se pudo procesar la imagen con el motor OCR. Intenta con una fotografía más nítida o ingresa los datos manualmente.');
+      setCameraError(
+        'No se pudo procesar la imagen con el motor OCR. Intenta con una fotografía más nítida o ingresa los datos manualmente.'
+      );
     } finally {
       setIsOcrLoading(false);
     }
@@ -413,11 +424,15 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
     stopOcrCamera();
 
     const base64 = canvas.toDataURL('image/jpeg', 0.95);
-    canvas.toBlob(async (blob) => {
-      if (!blob) return;
-      const file = new File([blob], `foto_etiqueta_${Date.now()}.jpg`, { type: 'image/jpeg' });
-      await processOcrImage(file, base64);
-    }, 'image/jpeg', 0.95);
+    canvas.toBlob(
+      async (blob) => {
+        if (!blob) return;
+        const file = new File([blob], `foto_etiqueta_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        await processOcrImage(file, base64);
+      },
+      'image/jpeg',
+      0.95
+    );
   };
 
   // Capturar fotograma en vivo desde el escáner de códigos si no se detecta código de barras impreso
@@ -431,13 +446,17 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const base64 = canvas.toDataURL('image/jpeg', 0.95);
-        canvas.toBlob(async (blob) => {
-          if (!blob) return;
-          const file = new File([blob], `captura_en_vivo_${Date.now()}.jpg`, { type: 'image/jpeg' });
-          await stopCamera();
-          setActiveMode('photo_ocr');
-          await processOcrImage(file, base64);
-        }, 'image/jpeg', 0.95);
+        canvas.toBlob(
+          async (blob) => {
+            if (!blob) return;
+            const file = new File([blob], `captura_en_vivo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+            await stopCamera();
+            setActiveMode('photo_ocr');
+            await processOcrImage(file, base64);
+          },
+          'image/jpeg',
+          0.95
+        );
         return;
       }
     }
@@ -486,7 +505,8 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
         model: plateInfo.detectedModel || editablePlateFields.model || '',
         serial: plateInfo.detectedSerial || barcodeDetected || editablePlateFields.serial || '',
         code: plateInfo.detectedCode || barcodeDetected || editablePlateFields.code || '',
-        deviceType: plateInfo.deviceType || editablePlateFields.deviceType || 'Equipo de Infraestructura / Cómputo',
+        deviceType:
+          plateInfo.deviceType || editablePlateFields.deviceType || 'Equipo de Infraestructura / Cómputo',
         specs: plateInfo.specsFound || editablePlateFields.specs || '',
       };
       setEditablePlateFields(initialFields);
@@ -494,7 +514,9 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
       setHasSearched(true);
 
       const targetSearch = initialFields.code || initialFields.serial || initialFields.model || '';
-      const found = targetSearch ? StorageService.findEquipmentByCodeOrSerial(targetSearch, equipments) : undefined;
+      const found = targetSearch
+        ? StorageService.findEquipmentByCodeOrSerial(targetSearch, equipments)
+        : undefined;
       setMatchedEquipment(found || null);
     } catch (err) {
       console.warn('Error al rotar y re-analizar OCR:', err);
@@ -506,7 +528,8 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
 
   // Re-buscar en censo con los campos editados
   const handleReSearchWithEditedFields = () => {
-    const targetSearch = editablePlateFields.code || editablePlateFields.serial || editablePlateFields.model || '';
+    const targetSearch =
+      editablePlateFields.code || editablePlateFields.serial || editablePlateFields.model || '';
     if (!targetSearch) return;
 
     setLastScannedRaw(targetSearch);
@@ -520,7 +543,11 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
     const brand = editablePlateFields.brand || detectedPlateInfo?.detectedBrand || '';
     const model = editablePlateFields.model || detectedPlateInfo?.detectedModel || '';
     const serial = editablePlateFields.serial || detectedPlateInfo?.detectedSerial || lastScannedRaw || '';
-    const code = editablePlateFields.code || detectedPlateInfo?.detectedCode || lastScannedRaw || `EQ-${Date.now().toString().slice(-4)}`;
+    const code =
+      editablePlateFields.code ||
+      detectedPlateInfo?.detectedCode ||
+      lastScannedRaw ||
+      `EQ-${Date.now().toString().slice(-4)}`;
     const type = editablePlateFields.deviceType || detectedPlateInfo?.deviceType || 'Equipo';
     const specs = editablePlateFields.specs || detectedPlateInfo?.specsFound || '';
 
@@ -583,7 +610,11 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
         'Limpieza de puertos USB, HDMI, ethernet y teclado/mouse',
       ];
       suggestedParts = ['Memoria RAM DDR4/DDR5', 'Unidad SSD M.2 NVMe', 'Adaptador 19V'];
-    } else if (lowerCombined.includes('router') || lowerCombined.includes('switch') || lowerCombined.includes('red')) {
+    } else if (
+      lowerCombined.includes('router') ||
+      lowerCombined.includes('switch') ||
+      lowerCombined.includes('red')
+    ) {
       freq = 'trimestral';
       cat = 'Redes y Telecomunicaciones';
       suggestedTasks = [
@@ -593,7 +624,11 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
         'Prueba de temperatura y latencia de red',
       ];
       suggestedParts = ['Patch cords Cat6/Cat6A', 'Transceivers SFP', 'Transformador de corriente'];
-    } else if (lowerCombined.includes('ap') || lowerCombined.includes('access point') || lowerCombined.includes('wifi')) {
+    } else if (
+      lowerCombined.includes('ap') ||
+      lowerCombined.includes('access point') ||
+      lowerCombined.includes('wifi')
+    ) {
       freq = 'trimestral';
       cat = 'Redes Inalámbricas (Wi-Fi)';
       suggestedTasks = [
@@ -618,7 +653,9 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
         `[Categoría SGC]: ${cat}`,
         specs ? `[Especificaciones de Etiqueta OCR]: ${specs}` : '',
         'Identificado mediante Reconocimiento OCR de Etiqueta Trasera.',
-      ].filter(Boolean).join('\n\n'),
+      ]
+        .filter(Boolean)
+        .join('\n\n'),
       status: 'activo',
     };
 
@@ -630,7 +667,6 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/80 backdrop-blur-md overflow-y-auto">
       <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-4 animate-in fade-in zoom-in-95 duration-200">
-        
         {/* Header institucional */}
         <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 px-6 py-4 flex items-center justify-between text-white border-b border-slate-800">
           <div className="flex items-center gap-3">
@@ -644,7 +680,9 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
                   OCR de Etiquetas
                 </span>
               </div>
-              <p className="text-xs text-slate-400">Lectura de Etiquetas Traseras, Seriales, QR y Códigos de Barras</p>
+              <p className="text-xs text-slate-400">
+                Lectura de Etiquetas Traseras, Seriales, QR y Códigos de Barras
+              </p>
             </div>
           </div>
           <button
@@ -672,7 +710,7 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
             <Camera className="w-3.5 h-3.5" />
             Cámara en Vivo (QR/Barras)
           </button>
-          
+
           <button
             type="button"
             onClick={() => {
@@ -710,7 +748,6 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
 
         {/* Área del visor / interacción */}
         <div className="p-4 sm:p-6 space-y-4">
-          
           {/* MODO 1: Cámara en Vivo */}
           {activeMode === 'camera' && (
             <div className="space-y-3">
@@ -753,7 +790,9 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
               {/* Botón para cambiar cámara (frontal / trasera) y acceso rápido a Foto OCR */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500 px-1">
                 <div className="flex items-center gap-2">
-                  <span>Cámara: {currentFacingMode === 'environment' ? 'Trasera (Recomendada)' : 'Frontal'}</span>
+                  <span>
+                    Cámara: {currentFacingMode === 'environment' ? 'Trasera (Recomendada)' : 'Frontal'}
+                  </span>
                   <button
                     type="button"
                     onClick={handleToggleFacingMode}
@@ -798,7 +837,8 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
                           )}
                         </p>
                         <p className="text-[11px] text-slate-500">
-                          Calibrado para patrones de Modelo:, Marca: y Serial: con filtrado alfanumérico limpio.
+                          Calibrado para patrones de Modelo:, Marca: y Serial: con filtrado alfanumérico
+                          limpio.
                         </p>
                       </div>
                     </div>
@@ -954,7 +994,10 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
                         Reconocimiento OCR de Etiquetas Traseras
                       </h3>
                       <p className="text-xs text-slate-600 max-w-md mx-auto mb-4 leading-relaxed">
-                        Selecciona una foto clara de la etiqueta técnica trasera o sticker del equipo. El motor OCR reconocerá automáticamente el <strong>Modelo</strong>, <strong>Marca</strong>, <strong>Número de Serie (S/N)</strong> y <strong>Especificaciones Técnicas</strong>.
+                        Selecciona una foto clara de la etiqueta técnica trasera o sticker del equipo. El
+                        motor OCR reconocerá automáticamente el <strong>Modelo</strong>,{' '}
+                        <strong>Marca</strong>, <strong>Número de Serie (S/N)</strong> y{' '}
+                        <strong>Especificaciones Técnicas</strong>.
                       </p>
 
                       <div className="flex flex-wrap items-center justify-center gap-3">
@@ -1011,10 +1054,10 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
                             {detectionSource === 'gemini_vision'
                               ? 'Lectura Asistida por IA Vision'
                               : detectionSource === 'hybrid'
-                              ? 'Detección Híbrida: Código de Barras + OCR Local'
-                              : detectionSource === 'barcode'
-                              ? 'Código de Barras Decodificado'
-                              : 'Motor OCR Tesseract.js (Local Privado)'}
+                                ? 'Detección Híbrida: Código de Barras + OCR Local'
+                                : detectionSource === 'barcode'
+                                  ? 'Código de Barras Decodificado'
+                                  : 'Motor OCR Tesseract.js (Local Privado)'}
                           </span>
                         </div>
 
@@ -1108,51 +1151,71 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
 
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
                       <div>
-                        <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">Marca:</label>
+                        <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                          Marca:
+                        </label>
                         <input
                           type="text"
                           value={editablePlateFields.brand}
-                          onChange={(e) => setEditablePlateFields(prev => ({ ...prev, brand: e.target.value }))}
+                          onChange={(e) =>
+                            setEditablePlateFields((prev) => ({ ...prev, brand: e.target.value }))
+                          }
                           placeholder="Ej. Cisco, D-Link, Dell"
                           className="w-full px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-semibold focus:ring-1 focus:ring-indigo-500"
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">Modelo:</label>
+                        <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                          Modelo:
+                        </label>
                         <input
                           type="text"
                           value={editablePlateFields.model}
-                          onChange={(e) => setEditablePlateFields(prev => ({ ...prev, model: e.target.value }))}
+                          onChange={(e) =>
+                            setEditablePlateFields((prev) => ({ ...prev, model: e.target.value }))
+                          }
                           placeholder="Ej. DIR-600, Catalyst 2960"
                           className="w-full px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-semibold focus:ring-1 focus:ring-indigo-500"
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">Número de Serie (S/N):</label>
+                        <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                          Número de Serie (S/N):
+                        </label>
                         <input
                           type="text"
                           value={editablePlateFields.serial}
-                          onChange={(e) => setEditablePlateFields(prev => ({ ...prev, serial: e.target.value }))}
+                          onChange={(e) =>
+                            setEditablePlateFields((prev) => ({ ...prev, serial: e.target.value }))
+                          }
                           placeholder="Ej. PV6B196005576"
                           className="w-full px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-mono font-semibold focus:ring-1 focus:ring-indigo-500"
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">Código Activo / P/N:</label>
+                        <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                          Código Activo / P/N:
+                        </label>
                         <input
                           type="text"
                           value={editablePlateFields.code}
-                          onChange={(e) => setEditablePlateFields(prev => ({ ...prev, code: e.target.value }))}
+                          onChange={(e) =>
+                            setEditablePlateFields((prev) => ({ ...prev, code: e.target.value }))
+                          }
                           placeholder="Ej. SW-01 o PV6B196005576"
                           className="w-full px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-mono focus:ring-1 focus:ring-indigo-500"
                         />
                       </div>
                       <div className="sm:col-span-2">
-                        <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">Tipo de Equipo:</label>
+                        <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                          Tipo de Equipo:
+                        </label>
                         <input
                           type="text"
                           value={editablePlateFields.deviceType}
-                          onChange={(e) => setEditablePlateFields(prev => ({ ...prev, deviceType: e.target.value }))}
+                          onChange={(e) =>
+                            setEditablePlateFields((prev) => ({ ...prev, deviceType: e.target.value }))
+                          }
                           placeholder="Ej. Router Inalámbrico / Switch / Mini PC"
                           className="w-full px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-indigo-500"
                         />
@@ -1161,11 +1224,15 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
 
                     {editablePlateFields.specs && (
                       <div className="pt-1.5 border-t border-slate-200">
-                        <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">Especificaciones / Alimentación / MAC:</label>
+                        <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                          Especificaciones / Alimentación / MAC:
+                        </label>
                         <input
                           type="text"
                           value={editablePlateFields.specs}
-                          onChange={(e) => setEditablePlateFields(prev => ({ ...prev, specs: e.target.value }))}
+                          onChange={(e) =>
+                            setEditablePlateFields((prev) => ({ ...prev, specs: e.target.value }))
+                          }
                           placeholder="Ej. MAC: 002401C8BB50 | Alimentación: 5V/1.2A"
                           className="w-full px-2 py-1 bg-white border border-slate-300 rounded-lg text-[11px] text-slate-700 focus:ring-1 focus:ring-indigo-500"
                         />
@@ -1180,8 +1247,16 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
                           onClick={() => setShowRawOcrText(!showRawOcrText)}
                           className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-800 font-medium"
                         >
-                          {showRawOcrText ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                          <span>{showRawOcrText ? 'Ocultar texto sin procesar' : 'Ver texto completo reconocido por OCR'}</span>
+                          {showRawOcrText ? (
+                            <ChevronUp className="w-3 h-3" />
+                          ) : (
+                            <ChevronDown className="w-3 h-3" />
+                          )}
+                          <span>
+                            {showRawOcrText
+                              ? 'Ocultar texto sin procesar'
+                              : 'Ver texto completo reconocido por OCR'}
+                          </span>
                         </button>
                         {showRawOcrText && (
                           <pre className="mt-1.5 p-2 bg-slate-100 border border-slate-300 rounded-lg text-[10px] font-mono text-slate-700 max-h-32 overflow-y-auto whitespace-pre-wrap">
@@ -1222,7 +1297,8 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
                 </button>
               </div>
               <p className="text-[11px] text-slate-500">
-                Puedes digitar manualmente o utilizar una pistola lectora de código de barras conectada por USB/Bluetooth.
+                Puedes digitar manualmente o utilizar una pistola lectora de código de barras conectada por
+                USB/Bluetooth.
               </p>
             </form>
           )}
@@ -1242,7 +1318,6 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
           {/* ======================================================== */}
           {hasSearched && !isOcrLoading && (
             <div className="pt-2 border-t border-slate-200 space-y-3">
-              
               {/* CASO A: EQUIPO EXISTENTE EN EL INVENTARIO */}
               {matchedEquipment ? (
                 <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-3 animate-in fade-in duration-200">
@@ -1259,17 +1334,27 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
                           <span className="text-xs font-bold text-emerald-950">{matchedEquipment.name}</span>
                         </div>
                         <p className="text-[11px] text-emerald-700 mt-0.5">
-                          Ubicación: <strong>{matchedEquipment.location}</strong> | Frecuencia: <strong>{matchedEquipment.frequency}</strong>
+                          Ubicación: <strong>{matchedEquipment.location}</strong> | Frecuencia:{' '}
+                          <strong>{matchedEquipment.frequency}</strong>
                         </p>
                       </div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-[11px] text-emerald-800 bg-white/70 p-2.5 rounded-xl border border-emerald-100">
-                    <div><strong>Marca:</strong> {matchedEquipment.brand}</div>
-                    <div><strong>Modelo:</strong> {matchedEquipment.model}</div>
-                    <div><strong>Serial:</strong> {matchedEquipment.serial || 'Sin serial'}</div>
-                    <div><strong>Estado:</strong> {matchedEquipment.status === 'activo' ? '✓ Activo en censo' : '⛔ Dado de baja'}</div>
+                    <div>
+                      <strong>Marca:</strong> {matchedEquipment.brand}
+                    </div>
+                    <div>
+                      <strong>Modelo:</strong> {matchedEquipment.model}
+                    </div>
+                    <div>
+                      <strong>Serial:</strong> {matchedEquipment.serial || 'Sin serial'}
+                    </div>
+                    <div>
+                      <strong>Estado:</strong>{' '}
+                      {matchedEquipment.status === 'activo' ? '✓ Activo en censo' : '⛔ Dado de baja'}
+                    </div>
                   </div>
 
                   {/* Acciones para equipo existente */}
@@ -1317,14 +1402,26 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
                       <p className="text-[11px] text-amber-800 mt-0.5">
                         {editablePlateFields.brand || editablePlateFields.model ? (
                           <>
-                            Etiqueta OCR identificada: <strong className="font-semibold text-amber-950">{editablePlateFields.brand} {editablePlateFields.model}</strong>
+                            Etiqueta OCR identificada:{' '}
+                            <strong className="font-semibold text-amber-950">
+                              {editablePlateFields.brand} {editablePlateFields.model}
+                            </strong>
                             {editablePlateFields.serial && (
-                              <span> | S/N: <strong className="font-mono text-amber-950">{editablePlateFields.serial}</strong></span>
+                              <span>
+                                {' '}
+                                | S/N:{' '}
+                                <strong className="font-mono text-amber-950">
+                                  {editablePlateFields.serial}
+                                </strong>
+                              </span>
                             )}
                           </>
                         ) : (
                           <>
-                            Código / Serial detectado: <strong className="font-mono">{lastScannedRaw || editablePlateFields.serial || 'Desconocido'}</strong>
+                            Código / Serial detectado:{' '}
+                            <strong className="font-mono">
+                              {lastScannedRaw || editablePlateFields.serial || 'Desconocido'}
+                            </strong>
                           </>
                         )}
                       </p>
@@ -1333,13 +1430,23 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
 
                   <div className="text-xs text-amber-900 bg-white/80 p-3 rounded-xl border border-amber-200/80 space-y-1.5">
                     <p className="font-semibold text-slate-800">
-                      El equipo no figura en la base de datos actual. Puedes registrarlo en el censo con los datos extraídos por el OCR:
+                      El equipo no figura en la base de datos actual. Puedes registrarlo en el censo con los
+                      datos extraídos por el OCR:
                     </p>
                     <div className="grid grid-cols-2 gap-1.5 text-[11px] text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200">
-                      <div><strong>Equipo:</strong> {editablePlateFields.deviceType || 'Equipo Tecnológico'}</div>
-                      <div><strong>Marca/Modelo:</strong> {editablePlateFields.brand || 'Genérico'} {editablePlateFields.model}</div>
-                      <div><strong>Serial:</strong> {editablePlateFields.serial || 'No especificado'}</div>
-                      <div><strong>Código:</strong> {editablePlateFields.code || lastScannedRaw || 'Automático'}</div>
+                      <div>
+                        <strong>Equipo:</strong> {editablePlateFields.deviceType || 'Equipo Tecnológico'}
+                      </div>
+                      <div>
+                        <strong>Marca/Modelo:</strong> {editablePlateFields.brand || 'Genérico'}{' '}
+                        {editablePlateFields.model}
+                      </div>
+                      <div>
+                        <strong>Serial:</strong> {editablePlateFields.serial || 'No especificado'}
+                      </div>
+                      <div>
+                        <strong>Código:</strong> {editablePlateFields.code || lastScannedRaw || 'Automático'}
+                      </div>
                     </div>
                   </div>
 
@@ -1359,7 +1466,10 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
                       type="button"
                       onClick={() => {
                         const basicDraft: Partial<Equipment> = {
-                          code: lastScannedRaw || editablePlateFields.code || `EQ-${Date.now().toString().slice(-4)}`,
+                          code:
+                            lastScannedRaw ||
+                            editablePlateFields.code ||
+                            `EQ-${Date.now().toString().slice(-4)}`,
                           serial: editablePlateFields.serial || lastScannedRaw || '',
                           brand: editablePlateFields.brand || '',
                           model: editablePlateFields.model || '',
@@ -1389,7 +1499,6 @@ export const EquipmentScannerModal: React.FC<EquipmentScannerModalProps> = ({
             Cerrar
           </button>
         </div>
-
       </div>
     </div>
   );

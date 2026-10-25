@@ -72,10 +72,7 @@ export const F03MaintenanceScheduleReport: React.FC<F03MaintenanceScheduleReport
                     >
                       Código
                     </th>
-                    <th
-                      rowSpan={2}
-                      className="py-1.5 px-3 border-r border-black font-bold text-[11px]"
-                    >
+                    <th rowSpan={2} className="py-1.5 px-3 border-r border-black font-bold text-[11px]">
                       Nombre del Equipo
                     </th>
                     <th
@@ -90,9 +87,7 @@ export const F03MaintenanceScheduleReport: React.FC<F03MaintenanceScheduleReport
                     {MONTH_NAMES.map((m, idx) => (
                       <th
                         key={m}
-                        className={`py-1 px-1 w-7 font-bold ${
-                          idx < 11 ? 'border-r border-black' : ''
-                        }`}
+                        className={`py-1 px-1 w-7 font-bold ${idx < 11 ? 'border-r border-black' : ''}`}
                       >
                         {m}
                       </th>
@@ -105,10 +100,7 @@ export const F03MaintenanceScheduleReport: React.FC<F03MaintenanceScheduleReport
                     const displayName = `${eq.name} - ${eq.location || 'Campus General'}`;
 
                     return (
-                      <tr
-                        key={eq.id}
-                        className="hover:bg-slate-100/60 print:hover:bg-transparent"
-                      >
+                      <tr key={eq.id} className="hover:bg-slate-100/60 print:hover:bg-transparent">
                         <td className="py-1 px-1.5 border-r border-black/60 font-semibold font-mono text-[10px] text-center">
                           {eq.code}
                         </td>
@@ -131,10 +123,7 @@ export const F03MaintenanceScheduleReport: React.FC<F03MaintenanceScheduleReport
 
                   {pageEquipments.length === 0 && (
                     <tr>
-                      <td
-                        colSpan={14}
-                        className="py-8 text-center text-xs text-slate-500 italic"
-                      >
+                      <td colSpan={14} className="py-8 text-center text-xs text-slate-500 italic">
                         No hay equipos programados para el año {selectedYear}.
                       </td>
                     </tr>

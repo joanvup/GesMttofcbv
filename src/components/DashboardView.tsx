@@ -1,14 +1,14 @@
 import React, { useMemo } from 'react';
 import { Equipment, MaintenanceExecution } from '../types';
 import { ActiveTab } from './Navbar';
-import { 
-  Server, 
-  CalendarClock, 
-  Activity, 
-  AlertTriangle, 
+import {
+  Server,
+  CalendarClock,
+  Activity,
+  AlertTriangle,
   ArrowRight,
   ShieldAlert,
-  CheckCircle2
+  CheckCircle2,
 } from 'lucide-react';
 
 interface DashboardViewProps {
@@ -26,25 +26,29 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   executions,
   selectedYear,
   complianceRate,
-  onNavigate
+  onNavigate,
 }) => {
   const currentMonthIndex = new Date().getMonth(); // 0-11
-  
+
   // 1. Equipos Activos
-  const activeEquipments = useMemo(() => equipments.filter(e => e.status === 'activo'), [equipments]);
-  
+  const activeEquipments = useMemo(() => equipments.filter((e) => e.status === 'activo'), [equipments]);
+
   // 2. Mantenimientos Pendientes (Mes actual y próximo)
   const pendingMaintenances = useMemo(() => {
     let count = 0;
-    activeEquipments.forEach(eq => {
+    activeEquipments.forEach((eq) => {
       // Revisar mes actual
       if (planMatrix[eq.id]?.[currentMonthIndex]) {
-        const exec = executions.find(x => x.equipmentId === eq.id && x.year === selectedYear && x.month === currentMonthIndex + 1);
+        const exec = executions.find(
+          (x) => x.equipmentId === eq.id && x.year === selectedYear && x.month === currentMonthIndex + 1
+        );
         if (!exec || !exec.isExecuted) count++;
       }
       // Revisar mes próximo (si está dentro del mismo año)
       if (currentMonthIndex < 11 && planMatrix[eq.id]?.[currentMonthIndex + 1]) {
-        const exec = executions.find(x => x.equipmentId === eq.id && x.year === selectedYear && x.month === currentMonthIndex + 2);
+        const exec = executions.find(
+          (x) => x.equipmentId === eq.id && x.year === selectedYear && x.month === currentMonthIndex + 2
+        );
         if (!exec || !exec.isExecuted) count++;
       }
     });
@@ -53,7 +57,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // 3. Alertas: Equipos sin ubicación
   const equipmentsWithoutLocation = useMemo(() => {
-    return activeEquipments.filter(e => !e.location || e.location.trim() === '');
+    return activeEquipments.filter((e) => !e.location || e.location.trim() === '');
   }, [activeEquipments]);
 
   return (
@@ -79,9 +83,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="relative">
             <h3 className="text-3xl font-black text-slate-800">{activeEquipments.length}</h3>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-1">Equipos Activos</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-1">
+              Equipos Activos
+            </p>
           </div>
-          <button 
+          <button
             onClick={() => onNavigate('equipos')}
             className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
           >
@@ -99,9 +105,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="relative">
             <h3 className="text-3xl font-black text-slate-800">{pendingMaintenances}</h3>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-1">Pendientes (30 Días)</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-1">
+              Pendientes (30 Días)
+            </p>
           </div>
-          <button 
+          <button
             onClick={() => onNavigate('ejecucion')}
             className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-1.5 text-xs font-bold text-amber-600 hover:text-amber-700 transition-colors"
           >
@@ -119,9 +127,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="relative">
             <h3 className="text-3xl font-black text-slate-800">{complianceRate}%</h3>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-1">Cumplimiento {selectedYear}</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-1">
+              Cumplimiento {selectedYear}
+            </p>
           </div>
-          <button 
+          <button
             onClick={() => onNavigate('reportes')}
             className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
           >
@@ -131,17 +141,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Card 4: Alertas */}
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col relative overflow-hidden group">
-          <div className={`absolute -right-4 -top-4 w-24 h-24 rounded-full transition-transform group-hover:scale-110 ${equipmentsWithoutLocation.length > 0 ? 'bg-rose-50' : 'bg-slate-50'}`} />
+          <div
+            className={`absolute -right-4 -top-4 w-24 h-24 rounded-full transition-transform group-hover:scale-110 ${equipmentsWithoutLocation.length > 0 ? 'bg-rose-50' : 'bg-slate-50'}`}
+          />
           <div className="relative flex justify-between items-start mb-4">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${equipmentsWithoutLocation.length > 0 ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-400'}`}>
-              {equipmentsWithoutLocation.length > 0 ? <AlertTriangle className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center ${equipmentsWithoutLocation.length > 0 ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-400'}`}
+            >
+              {equipmentsWithoutLocation.length > 0 ? (
+                <AlertTriangle className="w-5 h-5" />
+              ) : (
+                <CheckCircle2 className="w-5 h-5" />
+              )}
             </div>
           </div>
           <div className="relative">
             <h3 className="text-3xl font-black text-slate-800">{equipmentsWithoutLocation.length}</h3>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-1">Sin Ubicación</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-1">
+              Sin Ubicación
+            </p>
           </div>
-          <button 
+          <button
             onClick={() => onNavigate('equipos')}
             className={`mt-4 pt-4 border-t border-slate-100 flex items-center gap-1.5 text-xs font-bold transition-colors ${equipmentsWithoutLocation.length > 0 ? 'text-rose-600 hover:text-rose-700' : 'text-slate-500 hover:text-slate-600'}`}
           >
@@ -157,13 +177,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <ShieldAlert className="w-5 h-5" />
           </div>
           <div className="flex-1">
-            <h4 className="text-sm font-bold text-rose-900">Atención: Hay equipos que requieren actualización</h4>
+            <h4 className="text-sm font-bold text-rose-900">
+              Atención: Hay equipos que requieren actualización
+            </h4>
             <p className="text-xs text-rose-700 mt-1 mb-3 leading-relaxed">
-              Se han detectado {equipmentsWithoutLocation.length} equipo(s) activo(s) en el sistema que no tienen una ubicación física asignada. Esto puede generar inconsistencias en los reportes F01 y F02.
+              Se han detectado {equipmentsWithoutLocation.length} equipo(s) activo(s) en el sistema que no
+              tienen una ubicación física asignada. Esto puede generar inconsistencias en los reportes F01 y
+              F02.
             </p>
             <div className="flex flex-wrap gap-2">
-              {equipmentsWithoutLocation.slice(0, 5).map(eq => (
-                <span key={eq.id} className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold bg-white text-rose-700 border border-rose-200">
+              {equipmentsWithoutLocation.slice(0, 5).map((eq) => (
+                <span
+                  key={eq.id}
+                  className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold bg-white text-rose-700 border border-rose-200"
+                >
                   {eq.code}
                 </span>
               ))}
@@ -173,7 +200,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </span>
               )}
             </div>
-            <button 
+            <button
               onClick={() => onNavigate('equipos')}
               className="mt-4 px-4 py-2 bg-rose-600 text-white text-xs font-bold rounded-lg hover:bg-rose-700 transition-colors shadow-sm"
             >

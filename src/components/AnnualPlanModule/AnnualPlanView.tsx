@@ -1,28 +1,20 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  Calendar, 
-  Download, 
-  FileSpreadsheet, 
-  RotateCcw, 
-  Search, 
-  Check, 
-  Info,
+import {
+  Download,
+  FileSpreadsheet,
+  RotateCcw,
+  Search,
+  Check,
   CalendarDays,
-  Sparkles, 
-  ChevronLeft, 
-  ChevronRight, 
-  TrendingUp, 
-  MapPin,
+  Sparkles,
+  ChevronLeft,
+  ChevronRight,
   CalendarClock,
   SlidersHorizontal,
-  CheckSquare,
-  Square,
-  Filter,
-  Layers,
-  X
+  X,
 } from 'lucide-react';
 import { Equipment, MaintenanceExecution } from '../../types';
-import { MONTH_SHORT_NAMES, MONTH_NAMES, getDefaultMonthsForFrequency, StorageService } from '../../services/storage';
+import { MONTH_SHORT_NAMES, MONTH_NAMES, getDefaultMonthsForFrequency } from '../../services/storage';
 import { ExportService } from '../../services/exportService';
 import { BulkScheduleModal, BulkScheduleConfig } from './BulkScheduleModal';
 import { BulkExecutionModal } from '../ExecutionModule/BulkExecutionModal';
@@ -117,10 +109,7 @@ export const AnnualPlanView: React.FC<AnnualPlanViewProps> = ({
 
   // Manejadores de selección masiva
   const isAllFilteredSelected = useMemo(() => {
-    return (
-      filteredEquipments.length > 0 &&
-      filteredEquipments.every((e) => selectedEquipmentIds.has(e.id))
-    );
+    return filteredEquipments.length > 0 && filteredEquipments.every((e) => selectedEquipmentIds.has(e.id));
   }, [filteredEquipments, selectedEquipmentIds]);
 
   const handleToggleSelectAll = () => {
@@ -306,20 +295,14 @@ export const AnnualPlanView: React.FC<AnnualPlanViewProps> = ({
       });
     }
 
-    onBulkUpdatePlan(
-      newPlan,
-      undefined,
-      `Programación rápida "${label}" aplicada a ${ids.length} equipos.`
-    );
+    onBulkUpdatePlan(newPlan, undefined, `Programación rápida "${label}" aplicada a ${ids.length} equipos.`);
   };
 
   // Acción rápida en columna de mes (programar/desprogramar ese mes para los seleccionados o visibles)
   const handleToggleColumnForSelection = (monthIndex: number) => {
     if (!onBulkUpdatePlan) return;
     const targetIds: string[] =
-      selectedEquipmentIds.size > 0
-        ? Array.from(selectedEquipmentIds)
-        : filteredEquipments.map((e) => e.id);
+      selectedEquipmentIds.size > 0 ? Array.from(selectedEquipmentIds) : filteredEquipments.map((e) => e.id);
 
     if (targetIds.length === 0) return;
 
@@ -359,7 +342,8 @@ export const AnnualPlanView: React.FC<AnnualPlanViewProps> = ({
             Plan Anual de Mantenimiento Preventivo
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Matriz anual interactiva (Ene–Dic). Haga clic en cualquier celda para activar/desactivar o use la programación masiva por lotes.
+            Matriz anual interactiva (Ene–Dic). Haga clic en cualquier celda para activar/desactivar o use la
+            programación masiva por lotes.
           </p>
         </div>
 
@@ -375,9 +359,7 @@ export const AnnualPlanView: React.FC<AnnualPlanViewProps> = ({
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <div className="px-3 py-0.5 font-bold font-mono text-base text-slate-800">
-              {selectedYear}
-            </div>
+            <div className="px-3 py-0.5 font-bold font-mono text-base text-slate-800">{selectedYear}</div>
             <button
               type="button"
               onClick={() => onYearChange(selectedYear + 1)}
@@ -452,7 +434,8 @@ export const AnnualPlanView: React.FC<AnnualPlanViewProps> = ({
           <div>
             <span className="font-bold">¿Desea restablecer el cronograma de {selectedYear}?</span>
             <p className="text-amber-700 mt-0.5">
-              Se volverán a calcular los meses automáticamente según la frecuencia (mensual, trimestral, semestral, anual) de cada equipo.
+              Se volverán a calcular los meses automáticamente según la frecuencia (mensual, trimestral,
+              semestral, anual) de cada equipo.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -480,19 +463,25 @@ export const AnnualPlanView: React.FC<AnnualPlanViewProps> = ({
       {/* KPI Cards del Plan */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-          <span className="text-xs font-medium text-slate-500 uppercase tracking-wider block">Equipos en Cronograma</span>
+          <span className="text-xs font-medium text-slate-500 uppercase tracking-wider block">
+            Equipos en Cronograma
+          </span>
           <span className="text-2xl font-bold text-slate-800 mt-1 block">{activeEquipments.length}</span>
           <span className="text-[11px] text-slate-400 mt-0.5 block">Excluye dados de baja</span>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-indigo-200 shadow-2xs">
-          <span className="text-xs font-medium text-indigo-700 uppercase tracking-wider block">Intervenciones {selectedYear}</span>
+          <span className="text-xs font-medium text-indigo-700 uppercase tracking-wider block">
+            Intervenciones {selectedYear}
+          </span>
           <span className="text-2xl font-bold text-indigo-700 mt-1 block">{grandTotal}</span>
           <span className="text-[11px] text-indigo-600 mt-0.5 block">Total de marcas "X"</span>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-          <span className="text-xs font-medium text-slate-500 uppercase tracking-wider block">Mes con Mayor Carga</span>
+          <span className="text-xs font-medium text-slate-500 uppercase tracking-wider block">
+            Mes con Mayor Carga
+          </span>
           <span className="text-xl font-bold text-slate-800 mt-1 block">
             {MONTH_NAMES[peakMonthIndex]} ({monthlyTotals[peakMonthIndex]})
           </span>
@@ -500,7 +489,9 @@ export const AnnualPlanView: React.FC<AnnualPlanViewProps> = ({
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-emerald-200 shadow-2xs">
-          <span className="text-xs font-medium text-emerald-700 uppercase tracking-wider block">Programación Masiva</span>
+          <span className="text-xs font-medium text-emerald-700 uppercase tracking-wider block">
+            Programación Masiva
+          </span>
           <div className="flex items-center gap-1.5 mt-1">
             <Sparkles className="w-5 h-5 text-emerald-600" />
             <span className="text-sm font-bold text-emerald-700">Por Lotes Activa</span>
@@ -551,11 +542,10 @@ export const AnnualPlanView: React.FC<AnnualPlanViewProps> = ({
             </span>
             <div>
               <span className="text-xs font-bold text-white block">
-                {selectedEquipmentIds.size} {selectedEquipmentIds.size === 1 ? 'equipo seleccionado' : 'equipos seleccionados'}
+                {selectedEquipmentIds.size}{' '}
+                {selectedEquipmentIds.size === 1 ? 'equipo seleccionado' : 'equipos seleccionados'}
               </span>
-              <span className="text-[11px] text-slate-300">
-                Aplique programación en lote a estos equipos
-              </span>
+              <span className="text-[11px] text-slate-300">Aplique programación en lote a estos equipos</span>
             </div>
           </div>
 
@@ -629,7 +619,9 @@ export const AnnualPlanView: React.FC<AnnualPlanViewProps> = ({
                     type="checkbox"
                     checked={isAllFilteredSelected}
                     onChange={handleToggleSelectAll}
-                    title={isAllFilteredSelected ? 'Deseleccionar visibles' : 'Seleccionar todos los visibles'}
+                    title={
+                      isAllFilteredSelected ? 'Deseleccionar visibles' : 'Seleccionar todos los visibles'
+                    }
                     className="w-3.5 h-3.5 text-indigo-600 rounded border-slate-600 bg-slate-800 cursor-pointer focus:ring-0"
                   />
                 </th>
@@ -670,15 +662,15 @@ export const AnnualPlanView: React.FC<AnnualPlanViewProps> = ({
                     <tr
                       key={eq.id}
                       className={`transition-colors ${
-                        isRowSelected
-                          ? 'bg-indigo-50/60 hover:bg-indigo-50'
-                          : 'hover:bg-slate-50/80'
+                        isRowSelected ? 'bg-indigo-50/60 hover:bg-indigo-50' : 'hover:bg-slate-50/80'
                       }`}
                     >
                       {/* Checkbox de selección individual */}
-                      <td className={`py-2.5 px-3 text-center sticky left-0 z-20 border-r border-slate-100 ${
-                        isRowSelected ? 'bg-indigo-50/90' : 'bg-white'
-                      }`}>
+                      <td
+                        className={`py-2.5 px-3 text-center sticky left-0 z-20 border-r border-slate-100 ${
+                          isRowSelected ? 'bg-indigo-50/90' : 'bg-white'
+                        }`}
+                      >
                         <input
                           type="checkbox"
                           checked={isRowSelected}
@@ -688,9 +680,11 @@ export const AnnualPlanView: React.FC<AnnualPlanViewProps> = ({
                       </td>
 
                       {/* Código */}
-                      <td className={`py-2.5 px-3 font-mono font-bold text-slate-800 sticky left-10 whitespace-nowrap z-10 border-r border-slate-100 ${
-                        isRowSelected ? 'bg-indigo-50/90' : 'bg-white'
-                      }`}>
+                      <td
+                        className={`py-2.5 px-3 font-mono font-bold text-slate-800 sticky left-10 whitespace-nowrap z-10 border-r border-slate-100 ${
+                          isRowSelected ? 'bg-indigo-50/90' : 'bg-white'
+                        }`}
+                      >
                         <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[11px]">
                           {eq.code}
                         </span>

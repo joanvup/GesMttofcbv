@@ -97,9 +97,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     if (!rawRows.length || !mapping.location) return [];
 
     const existingNamesMap = new Map<string, CampusLocation>();
-    existingLocations.forEach((l) =>
-      existingNamesMap.set(l.name.toLowerCase().trim(), l)
-    );
+    existingLocations.forEach((l) => existingNamesMap.set(l.name.toLowerCase().trim(), l));
 
     const locMap = new Map<
       string,
@@ -124,11 +122,8 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
       const rawAreaType = mapping.areaType ? String(row[mapping.areaType] || '').trim() : '';
 
       const inferredBuilding =
-        rawBuilding ||
-        inferBuilding(locName, availableBuildings, defaultBuilding || 'Edificio Central');
-      const inferredAreaType = rawAreaType
-        ? inferAreaType(rawAreaType)
-        : inferAreaType(locName);
+        rawBuilding || inferBuilding(locName, availableBuildings, defaultBuilding || 'Edificio Central');
+      const inferredAreaType = rawAreaType ? inferAreaType(rawAreaType) : inferAreaType(locName);
 
       if (locMap.has(key)) {
         locMap.get(key)!.equipmentCount++;
@@ -179,7 +174,10 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
       // Auto-detección inteligente de columnas
       const findCol = (keywords: string[]): string => {
         for (const col of detectedCols) {
-          const lower = col.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          const lower = col
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
           if (keywords.some((k) => lower.includes(k))) {
             return col;
           }
@@ -357,9 +355,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                   <p className="text-sm font-semibold text-slate-700">
                     Haga clic para subir o arrastre el archivo Excel aquí
                   </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Formatos admitidos: .xlsx, .xls
-                  </p>
+                  <p className="text-xs text-slate-500 mt-1">Formatos admitidos: .xlsx, .xls</p>
                 </div>
                 <input
                   ref={fileInputRef}
@@ -378,7 +374,9 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 flex items-center justify-between">
                 <div className="text-xs text-slate-600">
                   <span className="font-semibold text-slate-800">¿No tienes el formato oficial?</span>
-                  <p className="text-slate-500">Descarga la plantilla con ejemplos, ubicaciones y columnas requeridas.</p>
+                  <p className="text-slate-500">
+                    Descarga la plantilla con ejemplos, ubicaciones y columnas requeridas.
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -395,7 +393,10 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 <div>
                   <span className="font-semibold">Creación automática de ubicaciones:</span>
                   <p className="text-indigo-700 text-[11px] mt-0.5 leading-relaxed">
-                    Si el archivo contiene ubicaciones nuevas (ej: <em>Sala de Profesores, Laboratorio de Robótica</em>), el sistema las dará de alta automáticamente en el módulo de Ubicaciones del campus, asignándoles su edificio correspondiente.
+                    Si el archivo contiene ubicaciones nuevas (ej:{' '}
+                    <em>Sala de Profesores, Laboratorio de Robótica</em>), el sistema las dará de alta
+                    automáticamente en el módulo de Ubicaciones del campus, asignándoles su edificio
+                    correspondiente.
                   </p>
                 </div>
               </div>
@@ -406,7 +407,8 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
             <div className="space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-slate-200">
                 <div className="text-xs text-slate-600">
-                  Archivo cargado: <strong className="text-slate-800">{file?.name}</strong> ({rawRows.length} filas detectadas)
+                  Archivo cargado: <strong className="text-slate-800">{file?.name}</strong> ({rawRows.length}{' '}
+                  filas detectadas)
                 </div>
                 <button
                   type="button"
@@ -448,9 +450,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                       </label>
                       <select
                         value={(mapping as any)[item.key] || ''}
-                        onChange={(e) =>
-                          setMapping({ ...mapping, [item.key]: e.target.value })
-                        }
+                        onChange={(e) => setMapping({ ...mapping, [item.key]: e.target.value })}
                         className="w-full text-xs px-2 py-1 rounded border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                       >
                         <option value="">-- No mapear / Por defecto --</option>
@@ -500,7 +500,9 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                       <div className="flex items-center gap-2 text-slate-700">
                         <Building2 className="w-4 h-4 text-emerald-700 shrink-0" />
-                        <span className="font-semibold text-xs">Edificio predeterminado para nuevas ubicaciones:</span>
+                        <span className="font-semibold text-xs">
+                          Edificio predeterminado para nuevas ubicaciones:
+                        </span>
                       </div>
                       <select
                         value={defaultBuilding}
@@ -569,7 +571,8 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                           </div>
                         ) : (
                           <p className="text-[11px] text-slate-500 italic">
-                            Todas las ubicaciones del archivo Excel corresponden a ubicaciones previamente dadas de alta en el campus.
+                            Todas las ubicaciones del archivo Excel corresponden a ubicaciones previamente
+                            dadas de alta en el campus.
                           </p>
                         )}
                       </div>

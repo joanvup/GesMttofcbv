@@ -1,7 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { X, Server, MapPin, Tag, ShieldAlert, CheckCircle2, Wrench, Layers, Clock, Edit2, Archive, FileText, QrCode, Download, Printer } from 'lucide-react';
+import {
+  X,
+  Server,
+  MapPin,
+  Wrench,
+  Layers,
+  Clock,
+  Edit2,
+  Archive,
+  FileText,
+  QrCode,
+  Download,
+  Printer,
+} from 'lucide-react';
 import { Equipment } from '../../types';
-import { MONTH_SHORT_NAMES } from '../../services/storage';
 import { QrService } from '../../services/qrService';
 
 interface EquipmentDetailsModalProps {
@@ -65,9 +77,7 @@ export const EquipmentDetailsModal: React.FC<EquipmentDetailsModalProps> = ({
                   {equipment.status === 'activo' ? 'Activo en Plan' : 'Dado de Baja Lógica'}
                 </span>
               </div>
-              <h3 className="text-base font-bold text-slate-800 mt-1">
-                {equipment.name}
-              </h3>
+              <h3 className="text-base font-bold text-slate-800 mt-1">{equipment.name}</h3>
             </div>
           </div>
           <button
@@ -121,7 +131,11 @@ export const EquipmentDetailsModal: React.FC<EquipmentDetailsModalProps> = ({
             <div className="flex items-center gap-4">
               <div className="w-24 h-24 bg-white p-1.5 rounded-lg border border-slate-300 shadow-xs shrink-0 flex items-center justify-center">
                 {qrDataUrl ? (
-                  <img src={qrDataUrl} alt={`QR ${equipment.code}`} className="w-full h-full object-contain" />
+                  <img
+                    src={qrDataUrl}
+                    alt={`QR ${equipment.code}`}
+                    className="w-full h-full object-contain"
+                  />
                 ) : (
                   <QrCode className="w-12 h-12 text-slate-300 animate-pulse" />
                 )}
@@ -132,7 +146,8 @@ export const EquipmentDetailsModal: React.FC<EquipmentDetailsModalProps> = ({
                   <span>Etiqueta QR de Identificación Física</span>
                 </div>
                 <p className="text-slate-600">
-                  Código escaneable mediante la cámara del móvil para validación rápida en campo y apertura directa de mantenimientos.
+                  Código escaneable mediante la cámara del móvil para validación rápida en campo y apertura
+                  directa de mantenimientos.
                 </p>
                 <div className="text-[11px] font-mono text-slate-500 pt-0.5">
                   ID: {equipment.id} | SN: {equipment.serial || 'N/A'}
@@ -210,7 +225,7 @@ export const EquipmentDetailsModal: React.FC<EquipmentDetailsModalProps> = ({
         <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
           <button
             type="button"
-            onClick={() => onToggleStatus(equipment)}
+            onClick={() => onToggleStatus?.(equipment)}
             className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg border flex items-center gap-1.5 transition-colors ${
               equipment.status === 'activo'
                 ? 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100'
@@ -242,7 +257,7 @@ export const EquipmentDetailsModal: React.FC<EquipmentDetailsModalProps> = ({
               type="button"
               onClick={() => {
                 onClose();
-                onEdit(equipment);
+                onEdit?.(equipment);
               }}
               className="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-2xs transition-colors"
             >

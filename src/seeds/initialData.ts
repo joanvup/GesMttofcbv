@@ -1,4 +1,4 @@
-import { Equipment, CampusLocation, MaintenanceExecution, EquipmentFrequency } from '../types';
+import { Equipment, CampusLocation, MaintenanceExecution } from '../types';
 
 export const INITIAL_BUILDINGS: string[] = [
   'Edificio Administrativo',
@@ -7,7 +7,7 @@ export const INITIAL_BUILDINGS: string[] = [
   'Edificio Central',
   'Edificio Cultural',
   'Edificio de Servicios',
-  'Campus Externo'
+  'Campus Externo',
 ];
 
 export const INITIAL_EQUIPMENTS: Equipment[] = [
@@ -19,13 +19,18 @@ export const INITIAL_EQUIPMENTS: Equipment[] = [
     brand: 'Cisco',
     model: 'C9115AXI-A',
     serial: 'FOC241923K4',
-    parts: ['Fuente de alimentación PoE', 'Antenas omnidireccionales', 'Puerto RJ-45 Gigabit', 'Chasis de disipación'],
+    parts: [
+      'Fuente de alimentación PoE',
+      'Antenas omnidireccionales',
+      'Puerto RJ-45 Gigabit',
+      'Chasis de disipación',
+    ],
     maintenanceTasks: [
       'Limpieza externa y remoción de polvo en rendijas de ventilación',
       'Inspección del cableado estructurado Cat6A y conector RJ45',
       'Verificación de potencia de transmisión y canal de radio',
       'Actualización/comprobación de firmware en Cisco DNA Spaces',
-      'Prueba de velocidad y cobertura con analizador de espectro'
+      'Prueba de velocidad y cobertura con analizador de espectro',
     ],
     frequency: 'trimestral',
     status: 'activo',
@@ -41,13 +46,18 @@ export const INITIAL_EQUIPMENTS: Equipment[] = [
     brand: 'Cisco',
     model: 'WS-C3850-48P-L',
     serial: 'FCW1948B03L',
-    parts: ['Fuentes redundantes duales 1100W', 'Módulo de 4 ventiladores extractores', 'Módulo uplink 10G SFP+', 'Tarjeta de apilamiento StackWise-480'],
+    parts: [
+      'Fuentes redundantes duales 1100W',
+      'Módulo de 4 ventiladores extractores',
+      'Módulo uplink 10G SFP+',
+      'Tarjeta de apilamiento StackWise-480',
+    ],
     maintenanceTasks: [
       'Aspirado de tolvas y limpieza profunda de ventiladores',
       'Inspección termográfica de fuentes de alimentación PoE',
       'Revisión de logs del sistema y errores CRC en puertos troncales',
       'Respaldo de la configuración Running-Config a servidor TFTP',
-      'Prueba de conmutación por falla de fuente redundante'
+      'Prueba de conmutación por falla de fuente redundante',
     ],
     frequency: 'semestral',
     status: 'activo',
@@ -63,13 +73,18 @@ export const INITIAL_EQUIPMENTS: Equipment[] = [
     brand: 'Dell',
     model: 'OptiPlex 7090 Tower',
     serial: '8GK3TX2',
-    parts: ['Procesador Intel Core i7-11700', '32GB RAM DDR4 Kingston', 'Arreglo RAID 1 NVMe 1TB', 'Fuente de poder 80 Plus Gold 500W'],
+    parts: [
+      'Procesador Intel Core i7-11700',
+      '32GB RAM DDR4 Kingston',
+      'Arreglo RAID 1 NVMe 1TB',
+      'Fuente de poder 80 Plus Gold 500W',
+    ],
     maintenanceTasks: [
       'Limpieza física interna, lubricación de ventiladores y cambio de pasta térmica',
       'Verificación del estado de salud SMART de discos SSD NVMe',
       'Limpieza de archivos temporales y optimización de base de datos AD',
       'Comprobación de copia de seguridad local y en nube',
-      'Prueba de reinicio controlado y servicios DNS/DHCP'
+      'Prueba de reinicio controlado y servicios DNS/DHCP',
     ],
     frequency: 'trimestral',
     status: 'activo',
@@ -85,13 +100,18 @@ export const INITIAL_EQUIPMENTS: Equipment[] = [
     brand: 'Epson',
     model: 'BrightLink 735Fi',
     serial: 'X79K019482',
-    parts: ['Fuente de luz láser', 'Módulo óptico ultra corto', 'Filtro de aire electrostático', 'Sensores táctiles interactivos Finger-touch'],
+    parts: [
+      'Fuente de luz láser',
+      'Módulo óptico ultra corto',
+      'Filtro de aire electrostático',
+      'Sensores táctiles interactivos Finger-touch',
+    ],
     maintenanceTasks: [
       'Extracción y soplado del filtro de aire y conducto óptico',
       'Limpieza de lente con solución óptica antiestática',
       'Calibración de los lápices interactivos y alineación de la imagen',
       'Revisión del número de horas del motor láser y temperatura de operación',
-      'Ajuste mecánico del soporte de montaje en pared'
+      'Ajuste mecánico del soporte de montaje en pared',
     ],
     frequency: 'trimestral',
     status: 'activo',
@@ -107,13 +127,18 @@ export const INITIAL_EQUIPMENTS: Equipment[] = [
     brand: 'APC by Schneider Electric',
     model: 'SRT10KXLI',
     serial: 'AS1934293810',
-    parts: ['Banco de 32 baterías 12V 9Ah VRLA', 'Módulo inversor estático', 'Bypass automático y manual', 'Tarjeta de gestión de red SNMP AP9631'],
+    parts: [
+      'Banco de 32 baterías 12V 9Ah VRLA',
+      'Módulo inversor estático',
+      'Bypass automático y manual',
+      'Tarjeta de gestión de red SNMP AP9631',
+    ],
     maintenanceTasks: [
       'Medición de voltaje individual y resistencia interna por cada celda de batería',
       'Inspección termográfica de bornes de conexión y torque de tornillería',
       'Simulación de corte de energía con transferencia a modo batería bajo carga real',
       'Prueba de sensores de temperatura y humedad ambiental de la sala',
-      'Limpieza de ventiladores y revisión de alarmas en el log SNMP'
+      'Limpieza de ventiladores y revisión de alarmas en el log SNMP',
     ],
     frequency: 'mensual',
     status: 'activo',
@@ -129,13 +154,18 @@ export const INITIAL_EQUIPMENTS: Equipment[] = [
     brand: 'Liebert Emerson',
     model: 'CRV-CR020',
     serial: 'EM1840291-C',
-    parts: ['Compresor Scroll digital', 'Filtros de aire MERV 11', 'Bomba de drenaje de condensado', 'Ventiladores EC de velocidad variable'],
+    parts: [
+      'Compresor Scroll digital',
+      'Filtros de aire MERV 11',
+      'Bomba de drenaje de condensado',
+      'Ventiladores EC de velocidad variable',
+    ],
     maintenanceTasks: [
       'Lavado y desinfección de serpentines evaporador y condensador',
       'Sustitución/lavado de filtros de aire de partículas finas',
       'Medición de presiones de gas refrigerante R-410A y recalentamiento',
       'Verificación y prueba del flotador de la bomba de drenaje de condensado',
-      'Calibración de sonda de temperatura y control digital'
+      'Calibración de sonda de temperatura y control digital',
     ],
     frequency: 'mensual',
     status: 'activo',
@@ -156,7 +186,7 @@ export const INITIAL_EQUIPMENTS: Equipment[] = [
       'Soplado de polvo y verificación de giro libre de ventiladores',
       'Revisión física del patch cord y marcado de puertos',
       'Comprobación de consumo de potencia PoE por puerto',
-      'Copia de seguridad del archivo de configuración'
+      'Copia de seguridad del archivo de configuración',
     ],
     frequency: 'semestral',
     status: 'activo',
@@ -188,7 +218,8 @@ export const INITIAL_LOCATIONS: CampusLocation[] = [
     name: 'Data Center Principal',
     building: 'Edificio Administrativo',
     areaType: 'datacenter',
-    description: 'Sala de servidores central, control de temperatura de precisión y acceso con tarjeta biométrica.',
+    description:
+      'Sala de servidores central, control de temperatura de precisión y acceso con tarjeta biométrica.',
     status: 'activa',
     createdAt: '2025-01-01T08:00:00.000Z',
     updatedAt: '2025-01-01T08:00:00.000Z',
@@ -316,11 +347,12 @@ export const INITIAL_EXECUTIONS_SEED: MaintenanceExecution[] = [
     executedDate: '2026-01-16 10:45',
     responsibleName: 'Ing. Carlos Mendoza',
     responsibleRole: 'Líder de Infraestructura y Mantenimiento FCBV',
-    signatureDataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    signatureDataUrl:
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
     completedTasks: [
       'Medición de voltaje individual y resistencia interna por cada celda de batería',
       'Inspección termográfica de bornes de conexión y torque de tornillería',
-      'Limpieza de ventiladores y revisión de alarmas en el log SNMP'
+      'Limpieza de ventiladores y revisión de alarmas en el log SNMP',
     ],
     observations: 'Baterías operando al 98% de capacidad nominal. Sin alarmas en el bus.',
     createdAt: '2026-01-16T10:45:00.000Z',
@@ -336,11 +368,12 @@ export const INITIAL_EXECUTIONS_SEED: MaintenanceExecution[] = [
     executedDate: '2026-01-23 15:30',
     responsibleName: 'Téc. Andrés Peña',
     responsibleRole: 'Técnico Especialista Climatización',
-    signatureDataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    signatureDataUrl:
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
     completedTasks: [
       'Lavado y desinfección de serpentines evaporador y condensador',
       'Sustitución/lavado de filtros de aire de partículas finas',
-      'Calibración de sonda de temperatura y control digital'
+      'Calibración de sonda de temperatura y control digital',
     ],
     observations: 'Filtros reemplazados por repuestos nuevos MERV 11.',
     partsReplaced: ['2x Filtros MERV 11'],
@@ -357,15 +390,16 @@ export const INITIAL_EXECUTIONS_SEED: MaintenanceExecution[] = [
     executedDate: '2026-03-12 11:15',
     responsibleName: 'Ing. Carlos Mendoza',
     responsibleRole: 'Líder de Infraestructura y Mantenimiento FCBV',
-    signatureDataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    signatureDataUrl:
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
     completedTasks: [
       'Limpieza externa y remoción de polvo en rendijas de ventilación',
       'Inspección del cableado estructurado Cat6A y conector RJ45',
       'Verificación de potencia de transmisión y canal de radio',
-      'Prueba de velocidad y cobertura con analizador de espectro'
+      'Prueba de velocidad y cobertura con analizador de espectro',
     ],
     observations: 'Firmware verificado versión 17.9.4a. Cobertura óptima.',
     createdAt: '2026-03-12T11:15:00.000Z',
     updatedAt: '2026-03-12T11:15:00.000Z',
-  }
+  },
 ];

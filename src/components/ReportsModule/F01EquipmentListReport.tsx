@@ -46,23 +46,14 @@ export const F01EquipmentListReport: React.FC<F01EquipmentListReportProps> = ({
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-black text-white font-bold text-xs uppercase tracking-wider">
-                    <th className="py-2 px-3 border-r border-black w-28 text-center font-bold">
-                      Codigo
-                    </th>
-                    <th className="py-2 px-3 border-r border-black font-bold">
-                      Nombre
-                    </th>
-                    <th className="py-2 px-3 w-56 font-bold">
-                      Ubicación
-                    </th>
+                    <th className="py-2 px-3 border-r border-black w-28 text-center font-bold">Codigo</th>
+                    <th className="py-2 px-3 border-r border-black font-bold">Nombre</th>
+                    <th className="py-2 px-3 w-56 font-bold">Ubicación</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/60 text-black">
                   {pageEquipments.map((eq) => (
-                    <tr
-                      key={eq.id}
-                      className="hover:bg-slate-100/60 print:hover:bg-transparent"
-                    >
+                    <tr key={eq.id} className="hover:bg-slate-100/60 print:hover:bg-transparent">
                       <td className="py-1.5 px-3 border-r border-black/60 font-semibold font-mono text-[11px] text-center">
                         {eq.code}
                       </td>
@@ -77,10 +68,7 @@ export const F01EquipmentListReport: React.FC<F01EquipmentListReportProps> = ({
 
                   {pageEquipments.length === 0 && (
                     <tr>
-                      <td
-                        colSpan={3}
-                        className="py-8 text-center text-xs text-slate-500 italic"
-                      >
+                      <td colSpan={3} className="py-8 text-center text-xs text-slate-500 italic">
                         No hay equipos críticos registrados para mostrar.
                       </td>
                     </tr>

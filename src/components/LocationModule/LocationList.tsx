@@ -1,28 +1,24 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  MapPin, 
-  Plus, 
-  Search, 
-  Filter, 
-  Building2, 
-  Server, 
-  FlaskConical, 
-  GraduationCap, 
-  Briefcase, 
-  Tv, 
-  Zap, 
-  HelpCircle, 
-  Edit3, 
-  Trash2, 
-  Eye, 
-  CheckCircle2, 
-  AlertCircle,
-  Layers,
-  ArrowUpDown,
+import {
+  MapPin,
+  Plus,
+  Search,
+  Building2,
+  Server,
+  FlaskConical,
+  GraduationCap,
+  Briefcase,
+  Tv,
+  Zap,
+  HelpCircle,
+  Edit3,
+  Trash2,
+  Eye,
+  CheckCircle2,
   Upload,
-  FileSpreadsheet
+  FileSpreadsheet,
 } from 'lucide-react';
-import { CampusLocation, Equipment, AreaType } from '../../types';
+import { CampusLocation, Equipment, AreaType, BuildingMutationResult } from '../../types';
 import { LocationFormModal } from './LocationFormModal';
 import { LocationDetailsModal } from './LocationDetailsModal';
 import { LocationDeleteModal } from './LocationDeleteModal';
@@ -34,32 +30,56 @@ interface LocationListProps {
   locations: CampusLocation[];
   equipments: Equipment[];
   buildings: string[];
-  onSaveLocation: (location: CampusLocation, oldName?: string) => void;
-  onDeleteLocation: (locationId: string, reassignToLocationName?: string) => void;
+  onSaveLocation: (location: CampusLocation, oldName?: string) => void | Promise<void>;
+  onDeleteLocation: (locationId: string, reassignToLocationName?: string) => void | Promise<void>;
   onViewEquipment?: (equipment: Equipment) => void;
   onImportLocations?: (importedLocations: CampusLocation[]) => void;
-  onAddBuilding: (name: string) => { success: boolean; message: string };
-  onRenameBuilding: (oldName: string, newName: string) => { success: boolean; message: string; affectedLocationsCount: number };
-  onDeleteBuilding: (name: string, reassignTo?: string) => { success: boolean; message: string; affectedLocationsCount: number };
-  onResetBuildings?: () => void;
+  onAddBuilding: (name: string) => Promise<BuildingMutationResult>;
+  onRenameBuilding: (oldName: string, newName: string) => Promise<BuildingMutationResult>;
+  onDeleteBuilding: (name: string, reassignTo?: string) => Promise<BuildingMutationResult>;
+  onResetBuildings?: () => void | Promise<void>;
 }
 
 const getAreaTypeInfo = (type: AreaType) => {
   switch (type) {
     case 'datacenter':
-      return { label: 'Data Center', icon: Server, badgeColor: 'bg-purple-50 text-purple-700 border-purple-200' };
+      return {
+        label: 'Data Center',
+        icon: Server,
+        badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
+      };
     case 'laboratorio':
-      return { label: 'Laboratorio Cómputo', icon: FlaskConical, badgeColor: 'bg-blue-50 text-blue-700 border-blue-200' };
+      return {
+        label: 'Laboratorio Cómputo',
+        icon: FlaskConical,
+        badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
+      };
     case 'aula':
-      return { label: 'Aula / Biblioteca', icon: GraduationCap, badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+      return {
+        label: 'Aula / Biblioteca',
+        icon: GraduationCap,
+        badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      };
     case 'oficina':
-      return { label: 'Oficina TI / Admin', icon: Briefcase, badgeColor: 'bg-amber-50 text-amber-700 border-amber-200' };
+      return {
+        label: 'Oficina TI / Admin',
+        icon: Briefcase,
+        badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
+      };
     case 'auditorio':
-      return { label: 'Auditorio / Eventos', icon: Tv, badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
+      return {
+        label: 'Auditorio / Eventos',
+        icon: Tv,
+        badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+      };
     case 'infraestructura':
       return { label: 'Infraestructura', icon: Zap, badgeColor: 'bg-rose-50 text-rose-700 border-rose-200' };
     default:
-      return { label: 'Otro Ambiente', icon: HelpCircle, badgeColor: 'bg-slate-50 text-slate-700 border-slate-200' };
+      return {
+        label: 'Otro Ambiente',
+        icon: HelpCircle,
+        badgeColor: 'bg-slate-50 text-slate-700 border-slate-200',
+      };
   }
 };
 
@@ -174,7 +194,8 @@ export const LocationList: React.FC<LocationListProps> = ({
             Gestión de Ubicaciones del Campus
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Catálogo de edificios, salas de cómputo, data centers y dependencias donde se encuentran instalados los equipos críticos
+            Catálogo de edificios, salas de cómputo, data centers y dependencias donde se encuentran
+            instalados los equipos críticos
           </p>
         </div>
 
@@ -232,9 +253,13 @@ export const LocationList: React.FC<LocationListProps> = ({
       {/* Tarjetas de Métricas KPI */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-          <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Ubicaciones</span>
+          <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+            Total Ubicaciones
+          </span>
           <span className="text-2xl font-bold text-slate-800 mt-1 block font-mono">{stats.total}</span>
-          <span className="text-[11px] text-slate-400 mt-0.5 block">{allBuildings.length} bloques / edificios</span>
+          <span className="text-[11px] text-slate-400 mt-0.5 block">
+            {allBuildings.length} bloques / edificios
+          </span>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-emerald-200 shadow-2xs">
@@ -258,7 +283,9 @@ export const LocationList: React.FC<LocationListProps> = ({
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-          <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Equipos Ubicados</span>
+          <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+            Equipos Ubicados
+          </span>
           <span className="text-2xl font-bold text-slate-800 mt-1 block font-mono">
             {stats.totalLinkedEquipments}
           </span>
@@ -349,7 +376,10 @@ export const LocationList: React.FC<LocationListProps> = ({
                 filteredLocations.map((loc) => {
                   const areaInfo = getAreaTypeInfo(loc.areaType);
                   const AreaIcon = areaInfo.icon;
-                  const counts = equipmentCountMap.get(loc.name.toLowerCase().trim()) || { total: 0, active: 0 };
+                  const counts = equipmentCountMap.get(loc.name.toLowerCase().trim()) || {
+                    total: 0,
+                    active: 0,
+                  };
 
                   return (
                     <tr key={loc.id} className="hover:bg-slate-50/80 transition-colors">
@@ -385,7 +415,9 @@ export const LocationList: React.FC<LocationListProps> = ({
 
                       {/* Tipo de Ambiente */}
                       <td className="py-3.5 px-3 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold border ${areaInfo.badgeColor}`}>
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold border ${areaInfo.badgeColor}`}
+                        >
                           <AreaIcon className="w-3.5 h-3.5" />
                           {areaInfo.label}
                         </span>

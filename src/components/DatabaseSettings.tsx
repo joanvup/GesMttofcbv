@@ -7,14 +7,17 @@ import {
   AlertCircle,
   RefreshCw,
   ArrowRight,
-  Shield,
   HelpCircle,
-  ExternalLink,
-  Layers,
-  Lock,
   Globe,
-  Radio
+  Archive,
+  Download,
+  Trash2,
+  ShieldCheck,
+  Clock,
+  FilePlus2,
 } from 'lucide-react';
+import type { ServerBackupInfo, ServerBackupSettings } from '../types';
+import { StorageService } from '../services/storage';
 
 interface DbConfig {
   engine: 'sqlite' | 'mysql';
@@ -62,13 +65,22 @@ export const DatabaseSettings: React.FC = () => {
   const [migrating, setMigrating] = useState(false);
   const [migrationResult, setMigrationResult] = useState<any | null>(null);
 
+  // Copias de seguridad del servidor
+  const [backups, setBackups] = useState<ServerBackupInfo[]>([]);
+  const [backupSettings, setBackupSettings] = useState<ServerBackupSettings | null>(null);
+  const [backupsLoading, setBackupsLoading] = useState(false);
+  const [creatingBackup, setCreatingBackup] = useState(false);
+  const [backupMessage, setBackupMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(
+    null
+  );
+
   const token = localStorage.getItem('fcbv_token');
 
   const fetchConfig = async () => {
     try {
       setLoading(true);
       const res = await fetch('/api/database/config', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (data.success) {
@@ -92,7 +104,62 @@ export const DatabaseSettings: React.FC = () => {
 
   useEffect(() => {
     fetchConfig();
+    fetchBackups();
   }, []);
+
+  const fetchBackups = async () => {
+    try {
+      setBackupsLoading(true);
+      const { backups: list, settings } = await StorageService.listServerBackups();
+      setBackups(list);
+      setBackupSettings(settings);
+    } catch (err) {
+      console.error('Error fetching backups:', err);
+    } finally {
+      setBackupsLoading(false);
+    }
+  };
+
+  const handleCreateBackup = async () => {
+    setCreatingBackup(true);
+    setBackupMessage(null);
+    try {
+      const backup = await StorageService.createServerBackup('manual');
+      setBackupMessage({ type: 'success', text: `Copia creada: ${backup.filename}` });
+      await fetchBackups();
+    } catch (err: any) {
+      setBackupMessage({ type: 'error', text: err.message || 'No se pudo crear la copia.' });
+    } finally {
+      setCreatingBackup(false);
+    }
+  };
+
+  const handleDownloadBackup = async (filename: string) => {
+    setBackupMessage(null);
+    try {
+      await StorageService.downloadServerBackup(filename);
+    } catch (err: any) {
+      setBackupMessage({ type: 'error', text: err.message || 'No se pudo descargar la copia.' });
+    }
+  };
+
+  const handleDeleteBackup = async (filename: string) => {
+    if (!confirm(`¿Eliminar la copia de seguridad "${filename}"? Esta acción no se puede deshacer.`)) return;
+    setBackupMessage(null);
+    try {
+      await StorageService.deleteServerBackup(filename);
+      setBackupMessage({ type: 'success', text: 'Copia eliminada.' });
+      await fetchBackups();
+    } catch (err: any) {
+      setBackupMessage({ type: 'error', text: err.message || 'No se pudo eliminar la copia.' });
+    }
+  };
+
+  const formatBackupDate = (iso: string) => {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return iso;
+    return date.toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
+  };
 
   const handleTestConnection = async () => {
     setTestingConnection(true);
@@ -102,9 +169,9 @@ export const DatabaseSettings: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ host, port, user, password, database, ssl })
+        body: JSON.stringify({ host, port, user, password, database, ssl }),
       });
       const data = await res.json();
       setTestResult(data);
@@ -123,12 +190,12 @@ export const DatabaseSettings: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           engine: selectedEngine,
-          mysqlConfig: { host, port, user, password, database, ssl }
-        })
+          mysqlConfig: { host, port, user, password, database, ssl },
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -145,7 +212,11 @@ export const DatabaseSettings: React.FC = () => {
   };
 
   const handleMigrate = async () => {
-    if (!confirm('¿Deseas iniciar la migración completa de los datos desde SQLite hacia MySQL? Se crearán las tablas e insertarán todos los registros.')) {
+    if (
+      !confirm(
+        '¿Deseas iniciar la migración completa de los datos desde SQLite hacia MySQL? Se crearán las tablas e insertarán todos los registros.'
+      )
+    ) {
       return;
     }
 
@@ -156,9 +227,9 @@ export const DatabaseSettings: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ host, port, user, password, database, ssl })
+        body: JSON.stringify({ host, port, user, password, database, ssl }),
       });
       const data = await res.json();
       setMigrationResult(data);
@@ -284,7 +355,9 @@ export const DatabaseSettings: React.FC = () => {
           <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-600 space-y-2">
             <div className="flex justify-between py-1 border-b border-slate-50">
               <span className="text-slate-500">Ubicación del archivo:</span>
-              <span className="font-mono text-slate-700 text-[11px] truncate max-w-xs">{stats?.sqlitePath}</span>
+              <span className="font-mono text-slate-700 text-[11px] truncate max-w-xs">
+                {stats?.sqlitePath}
+              </span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-50">
               <span className="text-slate-500">Rendimiento:</span>
@@ -522,22 +595,189 @@ export const DatabaseSettings: React.FC = () => {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-xs">
                 <div className="bg-white/80 p-2 rounded-lg border border-emerald-100">
                   <span className="text-slate-500 block">Equipos:</span>
-                  <span className="font-bold text-emerald-700">{migrationResult.counts.equipments} registros</span>
+                  <span className="font-bold text-emerald-700">
+                    {migrationResult.counts.equipments} registros
+                  </span>
                 </div>
                 <div className="bg-white/80 p-2 rounded-lg border border-emerald-100">
                   <span className="text-slate-500 block">Ubicaciones:</span>
-                  <span className="font-bold text-emerald-700">{migrationResult.counts.locations} espacios</span>
+                  <span className="font-bold text-emerald-700">
+                    {migrationResult.counts.locations} espacios
+                  </span>
                 </div>
                 <div className="bg-white/80 p-2 rounded-lg border border-emerald-100">
                   <span className="text-slate-500 block">Ejecuciones:</span>
-                  <span className="font-bold text-emerald-700">{migrationResult.counts.executions} actas</span>
+                  <span className="font-bold text-emerald-700">
+                    {migrationResult.counts.executions} actas
+                  </span>
                 </div>
                 <div className="bg-white/80 p-2 rounded-lg border border-emerald-100">
                   <span className="text-slate-500 block">Planes:</span>
-                  <span className="font-bold text-emerald-700">{migrationResult.counts.annualPlans} cronogramas</span>
+                  <span className="font-bold text-emerald-700">
+                    {migrationResult.counts.annualPlans} cronogramas
+                  </span>
                 </div>
               </div>
             )}
+          </div>
+        )}
+      </div>
+
+      {/* Copias de seguridad del servidor */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div className="flex items-center gap-2.5">
+            <Archive className="w-5 h-5 text-indigo-600" />
+            <div>
+              <h3 className="font-bold text-slate-800">Copias de Seguridad del Servidor</h3>
+              <p className="text-xs text-slate-500">
+                Se crea una copia automática del archivo SQLite cada {backupSettings?.intervalHours ?? 24}{' '}
+                horas y se conservan las últimas {backupSettings?.retention ?? 14}. También se genera una
+                copia antes de vaciar o restaurar datos.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={fetchBackups}
+              disabled={backupsLoading}
+              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-colors flex items-center gap-2 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${backupsLoading ? 'animate-spin' : ''}`} />
+              Actualizar
+            </button>
+            <button
+              type="button"
+              onClick={handleCreateBackup}
+              disabled={creatingBackup}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50"
+            >
+              <FilePlus2 className="w-4 h-4" />
+              {creatingBackup ? 'Creando...' : 'Crear copia ahora'}
+            </button>
+          </div>
+        </div>
+
+        {backupSettings && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+              <div>
+                <span className="text-slate-500 block">Estado</span>
+                <span className="font-semibold text-slate-800">
+                  {backupSettings.enabled ? 'Activas' : 'No disponibles (BD en memoria)'}
+                </span>
+              </div>
+            </div>
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
+              <Clock className="w-4 h-4 text-indigo-600 shrink-0" />
+              <div>
+                <span className="text-slate-500 block">Frecuencia</span>
+                <span className="font-semibold text-slate-800">
+                  Cada {backupSettings.intervalHours} horas
+                </span>
+              </div>
+            </div>
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
+              <HardDrive className="w-4 h-4 text-amber-600 shrink-0" />
+              <div className="min-w-0">
+                <span className="text-slate-500 block">Carpeta</span>
+                <span
+                  className="font-mono text-[11px] text-slate-700 truncate block"
+                  title={backupSettings.directory}
+                >
+                  {backupSettings.directory}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {backupMessage && (
+          <div
+            className={`p-3.5 rounded-xl border flex items-center gap-2 text-xs font-medium ${
+              backupMessage.type === 'success'
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                : 'bg-rose-50 text-rose-800 border-rose-200'
+            }`}
+          >
+            {backupMessage.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span>{backupMessage.text}</span>
+          </div>
+        )}
+
+        {backups.length === 0 ? (
+          <p className="text-sm text-slate-500 py-4 text-center">
+            {backupsLoading
+              ? 'Cargando copias de seguridad...'
+              : 'Todavía no hay copias de seguridad registradas.'}
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="text-xs uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                  <th className="py-2 pr-3 font-semibold">Archivo</th>
+                  <th className="py-2 pr-3 font-semibold">Fecha</th>
+                  <th className="py-2 pr-3 font-semibold">Tipo</th>
+                  <th className="py-2 pr-3 font-semibold">Tamaño</th>
+                  <th className="py-2 font-semibold text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {backups.map((backup) => (
+                  <tr key={backup.filename} className="border-b border-slate-50 last:border-0">
+                    <td
+                      className="py-2.5 pr-3 font-mono text-[11px] text-slate-700 max-w-[22rem] truncate"
+                      title={backup.filename}
+                    >
+                      {backup.filename}
+                    </td>
+                    <td className="py-2.5 pr-3 text-xs text-slate-600 whitespace-nowrap">
+                      {formatBackupDate(backup.createdAt)}
+                    </td>
+                    <td className="py-2.5 pr-3">
+                      <span
+                        className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                          backup.automatic ? 'bg-indigo-50 text-indigo-700' : 'bg-amber-50 text-amber-700'
+                        }`}
+                      >
+                        {backup.automatic ? 'Automática' : backup.reason}
+                      </span>
+                    </td>
+                    <td className="py-2.5 pr-3 text-xs text-slate-600 whitespace-nowrap">
+                      {backup.sizeKB} KB
+                    </td>
+                    <td className="py-2.5">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadBackup(backup.filename)}
+                          title="Descargar copia"
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteBackup(backup.filename)}
+                          title="Eliminar copia"
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -550,7 +790,10 @@ export const DatabaseSettings: React.FC = () => {
             Garantía de Persistencia Centralizada (No dependiente de localStorage):
           </p>
           <p>
-            Toda la información del Censo de Equipos, Planes Anuales, Registro de Mantenimientos, Catálogo de Áreas y Firmas se guarda de manera inmediata en la base de datos relacional del servidor. Si el usuario borra la caché del navegador o ingresa desde otro dispositivo o computadora en el colegio, todos los datos permanecerán íntegros y sincronizados.
+            Toda la información del Censo de Equipos, Planes Anuales, Registro de Mantenimientos, Catálogo de
+            Áreas y Firmas se guarda de manera inmediata en la base de datos relacional del servidor. Si el
+            usuario borra la caché del navegador o ingresa desde otro dispositivo o computadora en el colegio,
+            todos los datos permanecerán íntegros y sincronizados.
           </p>
         </div>
       </div>

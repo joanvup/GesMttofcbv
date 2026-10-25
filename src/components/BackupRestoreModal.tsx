@@ -11,17 +11,14 @@ import {
   Check,
   FileJson,
   RotateCcw,
-  Sparkles,
   Server,
   MapPin,
-  Building2,
   Calendar,
   ClipboardCheck,
-  ArrowRight,
-  HardDrive
+  HardDrive,
 } from 'lucide-react';
 import { StorageService } from '../services/storage';
-import { DatabaseBackup, DatabaseBackupData, DatabaseBackupMetadata } from '../types';
+import { DatabaseBackupData, DatabaseBackupMetadata } from '../types';
 
 interface BackupRestoreModalProps {
   isOpen: boolean;
@@ -57,9 +54,11 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
 
   // Estadísticas de la base de datos actual en vivo
   const [currentDbStats, setCurrentDbStats] = useState<DatabaseBackupMetadata>({
-    appName: 'FCBV',
-    exportDate: '',
-    equipmentCount: { total: 0, active: 0 },
+    createdAt: '',
+    version: '',
+    institution: 'FCBV',
+    system: 'Gestión de Mantenimiento',
+    equipmentCount: { total: 0, active: 0, inactive: 0 },
     locationsCount: 0,
     buildingsCount: 0,
     executionsCount: 0,
@@ -68,11 +67,13 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      StorageService.createFullBackup().then((backup) => {
-        if (backup && backup.metadata) {
-          setCurrentDbStats(backup.metadata);
-        }
-      }).catch((e) => console.error('Error loading DB stats:', e));
+      StorageService.createFullBackup()
+        .then((backup) => {
+          if (backup && backup.metadata) {
+            setCurrentDbStats(backup.metadata);
+          }
+        })
+        .catch((e) => console.error('Error loading DB stats:', e));
     }
   }, [isOpen]);
 
@@ -81,7 +82,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
   // Manejador de descarga de copia de seguridad
   const handleDownloadBackup = async () => {
     try {
-      const filename = await StorageService.downloadBackupFile();
+      await StorageService.downloadBackupFile();
       setDownloadSuccess(true);
       setTimeout(() => setDownloadSuccess(false), 4000);
     } catch (err: any) {
@@ -115,7 +116,9 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
         const validation = await StorageService.validateBackup(parsed);
 
         if (!validation.valid || !validation.data || !validation.metadata) {
-          setRestoreError(validation.error || 'El archivo seleccionado no corresponde a una copia de seguridad válida.');
+          setRestoreError(
+            validation.error || 'El archivo seleccionado no corresponde a una copia de seguridad válida.'
+          );
           setParsedBackup(null);
           return;
         }
@@ -152,6 +155,12 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
       // 1. Si está activado, descargar un respaldo preventivo de los datos actuales
       if (autoBackupBeforeRestore) {
         await StorageService.downloadBackupFile(`FCBV_Respaldo_Previo_Restauracion_${Date.now()}.json`);
+        // Además del JSON, se crea una copia del archivo SQLite en el servidor.
+        try {
+          await StorageService.createServerBackup('pre-restore');
+        } catch (backupError) {
+          console.warn('No se pudo crear la copia de seguridad del servidor:', backupError);
+        }
       }
 
       // 2. Restaurar la base de datos
@@ -327,9 +336,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
               {downloadSuccess && (
                 <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs flex items-center gap-2 animate-in fade-in">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>
-                    ¡Copia de seguridad descargada exitosamente en tu carpeta de descargas!
-                  </span>
+                  <span>¡Copia de seguridad descargada exitosamente en tu carpeta de descargas!</span>
                 </div>
               )}
 
@@ -483,9 +490,13 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                     </div>
 
                     <div className="text-[11px] text-slate-600 pt-1">
-                      Fecha del respaldo: <strong>{new Date(parsedBackup.metadata.createdAt).toLocaleString()}</strong>
+                      Fecha del respaldo:{' '}
+                      <strong>{new Date(parsedBackup.metadata.createdAt).toLocaleString()}</strong>
                       {parsedBackup.metadata.institution && (
-                        <span> • Institución: <strong>{parsedBackup.metadata.institution}</strong></span>
+                        <span>
+                          {' '}
+                          • Institución: <strong>{parsedBackup.metadata.institution}</strong>
+                        </span>
                       )}
                     </div>
                   </div>
@@ -518,7 +529,8 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                               Reemplazo Completo (Sobrescribir)
                             </span>
                             <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                              Sustituye por completo los datos actuales con los del archivo. Recomendado para restaurar una copia fiel.
+                              Sustituye por completo los datos actuales con los del archivo. Recomendado para
+                              restaurar una copia fiel.
                             </p>
                           </div>
                         </div>
@@ -545,7 +557,8 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                               Fusión Inteligente (Combinar)
                             </span>
                             <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                              Conserva tus datos actuales y añade únicamente los equipos, ubicaciones y órdenes que no existan.
+                              Conserva tus datos actuales y añade únicamente los equipos, ubicaciones y
+                              órdenes que no existan.
                             </p>
                           </div>
                         </div>
@@ -562,7 +575,8 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                           className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
                         />
                         <span className="text-xs font-medium text-slate-700">
-                          Descargar automáticamente un respaldo de seguridad de mis datos actuales antes de restaurar (recomendado)
+                          Descargar automáticamente un respaldo de seguridad de mis datos actuales antes de
+                          restaurar (recomendado)
                         </span>
                       </label>
                     </div>

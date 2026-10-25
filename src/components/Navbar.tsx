@@ -1,22 +1,22 @@
 import React, { useState } from 'react';
-import { 
-  Server, 
-  CalendarDays, 
-  ClipboardCheck, 
-  Shield, 
-  RotateCcw, 
-  Database, 
-  CheckCircle2, 
+import {
+  Server,
+  CalendarDays,
+  ClipboardCheck,
+  Shield,
+  RotateCcw,
+  Database,
   AlertTriangle,
   HelpCircle,
   X,
   MapPin,
   Trash2,
-  FileText
+  FileText,
 } from 'lucide-react';
 import { ClearDataModal } from './ClearDataModal';
 
-export type ActiveTab = 'dashboard' | 'equipos' | 'plan' | 'ejecucion' | 'ubicaciones' | 'reportes' | 'usuarios' | 'database';
+export type ActiveTab =
+  'dashboard' | 'equipos' | 'plan' | 'ejecucion' | 'ubicaciones' | 'reportes' | 'usuarios' | 'database';
 
 interface NavbarProps {
   activeTab: ActiveTab;
@@ -230,7 +230,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               Restaurar Datos de Demostración FCBV
             </h3>
             <p className="text-xs text-slate-600 mt-2">
-              Esta acción restablecerá los equipos de muestra de FCBV (Access Points, Switches Cisco, Servidores, UPS, Climatización), el cronograma y las ejecuciones iniciales en el almacenamiento local de su navegador.
+              Esta acción restablecerá los equipos de muestra de FCBV (Access Points, Switches Cisco,
+              Servidores, UPS, Climatización), el cronograma y las ejecuciones iniciales en el almacenamiento
+              local de su navegador.
             </p>
             <div className="flex justify-end gap-2.5 mt-5">
               <button
@@ -278,28 +280,38 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <strong className="text-slate-800 block font-semibold mb-1">
                   1. Registro de Equipos Críticos
                 </strong>
-                Aquí gestiona el inventario técnico (Access Points, Switches, Proyectores, Servidores, UPS, Climatización), sus partes y lista de tareas preventivas. Puede crear, editar, dar de baja lógica o importar masivamente desde Excel (.xlsx).
+                Aquí gestiona el inventario técnico (Access Points, Switches, Proyectores, Servidores, UPS,
+                Climatización), sus partes y lista de tareas preventivas. Puede crear, editar, dar de baja
+                lógica o importar masivamente desde Excel (.xlsx).
               </div>
 
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
                 <strong className="text-slate-800 block font-semibold mb-1">
                   2. Plan de Mantenimiento (Cronograma Anual)
                 </strong>
-                Se calcula automáticamente según la frecuencia (mensual, trimestral, semestral o anual). En la matriz de 12 columnas (Ene–Dic), puede hacer clic en cualquier celda para activar o desactivar la marca "X". Exportable a Excel y PDF con diseño institucional.
+                Se calcula automáticamente según la frecuencia (mensual, trimestral, semestral o anual). En la
+                matriz de 12 columnas (Ene–Dic), puede hacer clic en cualquier celda para activar o desactivar
+                la marca "X". Exportable a Excel y PDF con diseño institucional.
               </div>
 
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
                 <strong className="text-slate-800 block font-semibold mb-1">
                   3. Registro de Mantenimiento Ejecutado
                 </strong>
-                Alimentado directamente por las marcas "X" del cronograma. Permite agendar una fecha específica dentro de días hábiles (lunes a viernes), completar el checklist de actividades técnicas, capturar la firma digital del técnico en canvas y exportar actas oficiales a Excel y PDF.
+                Alimentado directamente por las marcas "X" del cronograma. Permite agendar una fecha
+                específica dentro de días hábiles (lunes a viernes), completar el checklist de actividades
+                técnicas, capturar la firma digital del técnico en canvas y exportar actas oficiales a Excel y
+                PDF.
               </div>
 
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
                 <strong className="text-slate-800 block font-semibold mb-1">
                   4. Gestión de Ubicaciones del Campus
                 </strong>
-                Administre el catálogo de espacios físicos (bloques, laboratorios, salas de cómputo, data centers, auditorios y depósitos). Al crear o editar equipos críticos puede seleccionar o crear ubicaciones dinámicamente, y al renombrar una ubicación, los activos vinculados se actualizan automáticamente en cascada.
+                Administre el catálogo de espacios físicos (bloques, laboratorios, salas de cómputo, data
+                centers, auditorios y depósitos). Al crear o editar equipos críticos puede seleccionar o crear
+                ubicaciones dinámicamente, y al renombrar una ubicación, los activos vinculados se actualizan
+                automáticamente en cascada.
               </div>
             </div>
 

@@ -23,7 +23,9 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-export const sqliteFilePath = path.join(uploadsDir, 'database.sqlite');
+// Ruta de la base SQLite. SQLITE_PATH permite usar una BD temporal (tests) o
+// una ubicación distinta a la predeterminada.
+export const sqliteFilePath = process.env.SQLITE_PATH?.trim() || path.join(uploadsDir, 'database.sqlite');
 const configFilePath = path.join(uploadsDir, 'db-config.json');
 
 // Cargar o crear configuración predeterminada (SQLite por defecto)
@@ -38,7 +40,7 @@ export function getDbConfig(): DatabaseConfig {
   }
   return {
     engine: 'sqlite',
-    sqlitePath: sqliteFilePath
+    sqlitePath: sqliteFilePath,
   };
 }
 
@@ -67,7 +69,7 @@ export async function testMysqlConnection(cfg: {
       password: cfg.password || '',
       database: cfg.database,
       ssl: cfg.ssl ? { rejectUnauthorized: false } : undefined,
-      connectTimeout: 8000
+      connectTimeout: 8000,
     });
 
     const [rows]: any = await connection.query('SELECT VERSION() as version');
@@ -110,7 +112,7 @@ export async function migrateSqliteToMysql(cfg: {
       database: cfg.database,
       ssl: cfg.ssl ? { rejectUnauthorized: false } : undefined,
       multipleStatements: true,
-      connectTimeout: 10000
+      connectTimeout: 10000,
     });
 
     // 1. Crear tablas en MySQL si no existen
@@ -205,7 +207,9 @@ export async function migrateSqliteToMysql(cfg: {
 
     // 3. Limpiar e insertar en MySQL
     await connection.query('SET FOREIGN_KEY_CHECKS = 0;');
-    await connection.query('TRUNCATE TABLE users; TRUNCATE TABLE buildings; TRUNCATE TABLE locations; TRUNCATE TABLE equipments; TRUNCATE TABLE annual_plans; TRUNCATE TABLE executions; TRUNCATE TABLE settings;');
+    await connection.query(
+      'TRUNCATE TABLE users; TRUNCATE TABLE buildings; TRUNCATE TABLE locations; TRUNCATE TABLE equipments; TRUNCATE TABLE annual_plans; TRUNCATE TABLE executions; TRUNCATE TABLE settings;'
+    );
     await connection.query('SET FOREIGN_KEY_CHECKS = 1;');
 
     for (const u of allUsers) {
@@ -216,10 +220,7 @@ export async function migrateSqliteToMysql(cfg: {
     }
 
     for (const b of allBuildings) {
-      await connection.query(
-        'INSERT INTO buildings (name) VALUES (?)',
-        [b.name]
-      );
+      await connection.query('INSERT INTO buildings (name) VALUES (?)', [b.name]);
     }
 
     for (const l of allLocations) {
@@ -232,7 +233,23 @@ export async function migrateSqliteToMysql(cfg: {
     for (const eq of allEquipments) {
       await connection.query(
         'INSERT INTO equipments (id, code, name, location, brand, model, serial, parts, maintenance_tasks, frequency, custom_months, status, observations, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [eq.id, eq.code, eq.name, eq.location, eq.brand, eq.model, eq.serial, eq.parts, eq.maintenanceTasks, eq.frequency, eq.customMonths, eq.status, eq.observations, eq.createdAt, eq.updatedAt]
+        [
+          eq.id,
+          eq.code,
+          eq.name,
+          eq.location,
+          eq.brand,
+          eq.model,
+          eq.serial,
+          eq.parts,
+          eq.maintenanceTasks,
+          eq.frequency,
+          eq.customMonths,
+          eq.status,
+          eq.observations,
+          eq.createdAt,
+          eq.updatedAt,
+        ]
       );
     }
 
@@ -246,15 +263,33 @@ export async function migrateSqliteToMysql(cfg: {
     for (const ex of allExecutions) {
       await connection.query(
         'INSERT INTO executions (id, equipment_id, year, month, scheduled_date, is_executed, executed_date, responsible_name, responsible_role, signature_data_url, completed_tasks, parts_replaced, observations, maintenance_type, failure_description, action_taken, downtime_hours, final_operational_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [ex.id, ex.equipmentId, ex.year, ex.month, ex.scheduledDate, ex.isExecuted ? 1 : 0, ex.executedDate, ex.responsibleName, ex.responsibleRole, ex.signatureDataUrl, ex.completedTasks, ex.partsReplaced, ex.observations, ex.maintenanceType || 'preventivo', ex.failureDescription || null, ex.actionTaken || null, ex.downtimeHours || null, ex.finalOperationalStatus || null, ex.createdAt, ex.updatedAt]
+        [
+          ex.id,
+          ex.equipmentId,
+          ex.year,
+          ex.month,
+          ex.scheduledDate,
+          ex.isExecuted ? 1 : 0,
+          ex.executedDate,
+          ex.responsibleName,
+          ex.responsibleRole,
+          ex.signatureDataUrl,
+          ex.completedTasks,
+          ex.partsReplaced,
+          ex.observations,
+          ex.maintenanceType || 'preventivo',
+          ex.failureDescription || null,
+          ex.actionTaken || null,
+          ex.downtimeHours || null,
+          ex.finalOperationalStatus || null,
+          ex.createdAt,
+          ex.updatedAt,
+        ]
       );
     }
 
     for (const s of allSettings) {
-      await connection.query(
-        'INSERT INTO settings (\`key\`, value) VALUES (?, ?)',
-        [s.key, s.value]
-      );
+      await connection.query('INSERT INTO settings (`key`, value) VALUES (?, ?)', [s.key, s.value]);
     }
 
     await connection.end();
@@ -269,16 +304,20 @@ export async function migrateSqliteToMysql(cfg: {
         equipments: allEquipments.length,
         annualPlans: allPlans.length,
         executions: allExecutions.length,
-        settings: allSettings.length
-      }
+        settings: allSettings.length,
+      },
     };
   } catch (err: any) {
     if (connection) {
-      try { await connection.end(); } catch (e) {}
+      try {
+        await connection.end();
+      } catch {
+        /* conexión ya cerrada */
+      }
     }
     return {
       success: false,
-      message: err.message || 'Error durante la migración hacia MySQL'
+      message: err.message || 'Error durante la migración hacia MySQL',
     };
   }
 }

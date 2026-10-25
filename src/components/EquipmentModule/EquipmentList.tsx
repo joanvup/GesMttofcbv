@@ -1,29 +1,22 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  FileSpreadsheet, 
-  Download, 
-  Edit3, 
-  Eye, 
-  Archive, 
-  RefreshCw, 
-  Layers, 
-  Wrench, 
-  MapPin, 
-  CheckCircle,
-  AlertTriangle,
+import {
+  Plus,
+  Search,
+  FileSpreadsheet,
+  Download,
+  Edit3,
+  Eye,
+  Archive,
+  RefreshCw,
+  Layers,
+  Wrench,
+  MapPin,
   Server,
   Upload,
   CalendarClock,
-  SlidersHorizontal,
-  CheckSquare,
-  Square,
   X,
   ScanLine,
   Printer,
-  QrCode
 } from 'lucide-react';
 import { Equipment, EquipmentStatus, EquipmentFrequency, CampusLocation } from '../../types';
 import { ExportService } from '../../services/exportService';
@@ -116,10 +109,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({
 
   // Selección masiva
   const isAllFilteredSelected = useMemo(() => {
-    return (
-      filteredEquipments.length > 0 &&
-      filteredEquipments.every((e) => selectedIds.has(e.id))
-    );
+    return filteredEquipments.length > 0 && filteredEquipments.every((e) => selectedIds.has(e.id));
   }, [filteredEquipments, selectedIds]);
 
   const handleToggleSelectAll = () => {
@@ -251,19 +241,27 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({
       {/* Tarjetas de estado rápido */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-          <span className="text-xs font-medium text-slate-500 uppercase tracking-wider block">Total Equipos</span>
+          <span className="text-xs font-medium text-slate-500 uppercase tracking-wider block">
+            Total Equipos
+          </span>
           <span className="text-2xl font-bold text-slate-800 mt-1 block">{equipments.length}</span>
         </div>
         <div className="bg-white p-4 rounded-xl border border-emerald-200 shadow-2xs">
-          <span className="text-xs font-medium text-emerald-700 uppercase tracking-wider block">Activos en Plan</span>
+          <span className="text-xs font-medium text-emerald-700 uppercase tracking-wider block">
+            Activos en Plan
+          </span>
           <span className="text-2xl font-bold text-emerald-700 mt-1 block">{totalActivos}</span>
         </div>
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-          <span className="text-xs font-medium text-slate-500 uppercase tracking-wider block">Dados de Baja</span>
+          <span className="text-xs font-medium text-slate-500 uppercase tracking-wider block">
+            Dados de Baja
+          </span>
           <span className="text-2xl font-bold text-slate-600 mt-1 block">{totalBaja}</span>
         </div>
         <div className="bg-white p-4 rounded-xl border border-indigo-200 shadow-2xs">
-          <span className="text-xs font-medium text-indigo-700 uppercase tracking-wider block">Ubicaciones</span>
+          <span className="text-xs font-medium text-indigo-700 uppercase tracking-wider block">
+            Ubicaciones
+          </span>
           <span className="text-2xl font-bold text-indigo-700 mt-1 block">{locations.length}</span>
         </div>
       </div>
@@ -330,7 +328,10 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({
         </div>
 
         {/* Resumen de resultados y reset de filtros */}
-        {(searchTerm || selectedLocation !== 'todas' || selectedStatus !== 'todos' || selectedFrequency !== 'todas') && (
+        {(searchTerm ||
+          selectedLocation !== 'todas' ||
+          selectedStatus !== 'todos' ||
+          selectedFrequency !== 'todas') && (
           <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
             <span>
               Mostrando <strong>{filteredEquipments.length}</strong> de {equipments.length} equipos
@@ -362,9 +363,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({
               <span className="text-xs font-bold text-white block">
                 {selectedIds.size} {selectedIds.size === 1 ? 'equipo seleccionado' : 'equipos seleccionados'}
               </span>
-              <span className="text-[11px] text-slate-300">
-                Acciones masivas disponibles para este lote
-              </span>
+              <span className="text-[11px] text-slate-300">Acciones masivas disponibles para este lote</span>
             </div>
           </div>
 
@@ -497,12 +496,18 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({
                       </td>
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         <div className="inline-flex items-center gap-2 text-slate-500">
-                          <span title={`${eq.parts.length} partes registradas`} className="flex items-center gap-0.5">
+                          <span
+                            title={`${eq.parts.length} partes registradas`}
+                            className="flex items-center gap-0.5"
+                          >
                             <Layers className="w-3.5 h-3.5 text-slate-400" />
                             {eq.parts.length}
                           </span>
                           <span className="text-slate-300">•</span>
-                          <span title={`${eq.maintenanceTasks.length} tareas de mantenimiento`} className="flex items-center gap-0.5">
+                          <span
+                            title={`${eq.maintenanceTasks.length} tareas de mantenimiento`}
+                            className="flex items-center gap-0.5"
+                          >
                             <Wrench className="w-3.5 h-3.5 text-indigo-500" />
                             {eq.maintenanceTasks.length}
                           </span>
@@ -569,8 +574,8 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({
                   <td colSpan={9} className="py-14 text-center text-slate-400">
                     <Server className="w-10 h-10 mx-auto mb-3 text-slate-300" />
                     <p className="text-base font-semibold text-slate-700">
-                      {equipments.length === 0 
-                        ? 'No hay equipos críticos registrados' 
+                      {equipments.length === 0
+                        ? 'No hay equipos críticos registrados'
                         : 'No se encontraron equipos críticos con los filtros aplicados'}
                     </p>
                     <p className="text-xs text-slate-500 mt-1.5 max-w-md mx-auto">

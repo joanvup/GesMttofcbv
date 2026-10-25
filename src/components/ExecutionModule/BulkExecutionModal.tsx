@@ -1,34 +1,24 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   CheckCircle2,
-  Calendar,
-  AlertTriangle,
   User,
   ShieldCheck,
-  Clock,
-  MapPin,
   PenTool,
   Info,
   X,
   FileCheck2,
   Search,
-  Filter,
   Upload,
   Sparkles,
   RotateCcw,
-  Check,
-  FileSignature
+  FileSignature,
 } from 'lucide-react';
 import { Equipment, MaintenanceExecution } from '../../types';
 import { MONTH_NAMES, getFirstBusinessDayOfMonth, StorageService } from '../../services/storage';
 import { SignaturePad } from '../SignaturePad';
 
 // Generador de Firma Electrónica Institucional Certificada
-export function generateInstitutionalDigitalSignature(
-  name: string,
-  role: string,
-  dateStr?: string
-): string {
+export function generateInstitutionalDigitalSignature(name: string, role: string, dateStr?: string): string {
   const canvas = document.createElement('canvas');
   canvas.width = 460;
   canvas.height = 140;
@@ -154,20 +144,23 @@ export const BulkExecutionModal: React.FC<BulkExecutionModalProps> = ({
   const [scope, setScope] = useState<'monthOnly' | 'allYear'>(
     currentSelectedMonth > 0 ? 'monthOnly' : 'allYear'
   );
-  const [targetMonth, setTargetMonth] = useState<number>(
-    currentSelectedMonth > 0 ? currentSelectedMonth : 1
-  );
+  const [targetMonth, setTargetMonth] = useState<number>(currentSelectedMonth > 0 ? currentSelectedMonth : 1);
 
   // Parámetros técnicos de ejecución
   const [responsibleName, setResponsibleName] = useState('Ing. Carlos Mendoza');
   const [responsibleRole, setResponsibleRole] = useState('Líder de Infraestructura y Mantenimiento FCBV');
-  const [observations, setObservations] = useState('Mantenimiento preventivo ejecutado según cronograma programado.');
+  const [observations, setObservations] = useState(
+    'Mantenimiento preventivo ejecutado según cronograma programado.'
+  );
   const [overwriteAlreadyExecuted, setOverwriteAlreadyExecuted] = useState(false);
   const [completeAllTasks, setCompleteAllTasks] = useState(true);
 
   // Firma digital (la firma predeterminada vive en el servidor)
   const [signatureDataUrl, setSignatureDataUrl] = useState<string>(() =>
-    generateInstitutionalDigitalSignature('Ing. Carlos Mendoza', 'Líder de Infraestructura y Mantenimiento FCBV')
+    generateInstitutionalDigitalSignature(
+      'Ing. Carlos Mendoza',
+      'Líder de Infraestructura y Mantenimiento FCBV'
+    )
   );
   const [savedSignature, setSavedSignature] = useState<string>('');
   const [signatureMode, setSignatureMode] = useState<'draw' | 'generate' | 'upload'>('generate');
@@ -186,7 +179,9 @@ export const BulkExecutionModal: React.FC<BulkExecutionModalProps> = ({
       .catch(() => {
         // Sin firma guardada o sin conexión: se mantiene la firma generada localmente
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Filtro de búsqueda dentro del modal
@@ -219,8 +214,7 @@ export const BulkExecutionModal: React.FC<BulkExecutionModalProps> = ({
           const existing = execMap.get(key);
 
           // Si ya tiene scheduledDate, usarla. Si no, calcular el primer día hábil del mes
-          const scheduledDate =
-            existing?.scheduledDate || getFirstBusinessDayOfMonth(selectedYear, mNum);
+          const scheduledDate = existing?.scheduledDate || getFirstBusinessDayOfMonth(selectedYear, mNum);
 
           const isAlreadyExecuted = Boolean(existing?.isExecuted);
 
@@ -308,10 +302,7 @@ export const BulkExecutionModal: React.FC<BulkExecutionModalProps> = ({
     // Asegurar firma digital válida
     let finalSignature = signatureDataUrl;
     if (!finalSignature || !finalSignature.trim()) {
-      finalSignature = generateInstitutionalDigitalSignature(
-        responsibleName.trim(),
-        responsibleRole.trim()
-      );
+      finalSignature = generateInstitutionalDigitalSignature(responsibleName.trim(), responsibleRole.trim());
       setSignatureDataUrl(finalSignature);
     }
 
@@ -366,7 +357,6 @@ export const BulkExecutionModal: React.FC<BulkExecutionModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        
         {/* Cabecera del Modal */}
         <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-emerald-50 via-teal-50 to-indigo-50 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -396,7 +386,6 @@ export const BulkExecutionModal: React.FC<BulkExecutionModalProps> = ({
 
         {/* Contenido Principal con Scroll */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5 text-xs">
-          
           {/* Regla de negocio destacada */}
           <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3">
             <Info className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
@@ -405,7 +394,9 @@ export const BulkExecutionModal: React.FC<BulkExecutionModalProps> = ({
                 Regla Automática: La fecha de ejecución será exactamente igual a la fecha programada
               </p>
               <p className="text-[11px] text-emerald-800 leading-relaxed">
-                Cada intervención seleccionada se marcará como <strong>EJECUTADA</strong>, asignando en el campo de fecha realizada el día hábil exacto que tenía programado (por ejemplo, <em>2026-06-01 10:00</em>).
+                Cada intervención seleccionada se marcará como <strong>EJECUTADA</strong>, asignando en el
+                campo de fecha realizada el día hábil exacto que tenía programado (por ejemplo,{' '}
+                <em>2026-06-01 10:00</em>).
               </p>
             </div>
           </div>
@@ -700,7 +691,9 @@ export const BulkExecutionModal: React.FC<BulkExecutionModalProps> = ({
                     Firma Electrónica Institucional Certificada FCBV
                   </div>
                   <p className="text-[11px] text-slate-500 leading-relaxed max-w-md">
-                    Genera automáticamente un sello criptográfico oficial con el nombre del técnico (<strong>{responsibleName}</strong>), su rol institucional, marca de tiempo y código hash de seguridad único.
+                    Genera automáticamente un sello criptográfico oficial con el nombre del técnico (
+                    <strong>{responsibleName}</strong>), su rol institucional, marca de tiempo y código hash
+                    de seguridad único.
                   </p>
                 </div>
                 <button
@@ -819,9 +812,7 @@ export const BulkExecutionModal: React.FC<BulkExecutionModalProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <FileCheck2 className="w-4 h-4 text-emerald-600" />
-                <span className="font-bold text-slate-800 text-xs">
-                  Órdenes a Ejecutar Masivamente:
-                </span>
+                <span className="font-bold text-slate-800 text-xs">Órdenes a Ejecutar Masivamente:</span>
               </div>
               <span className="font-mono font-black text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
                 {eligibleTargets.length} órdenes seleccionadas

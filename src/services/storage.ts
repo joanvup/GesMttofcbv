@@ -1,6 +1,5 @@
 import {
   Equipment,
-  AnnualPlanMatrix,
   MaintenanceExecution,
   EquipmentFrequency,
   CampusLocation,
@@ -8,7 +7,8 @@ import {
   DatabaseBackup,
   DatabaseBackupData,
   DatabaseBackupMetadata,
-  PlateOcrResult
+  ServerBackupInfo,
+  ServerBackupSettings,
 } from '../types';
 
 const STORAGE_KEYS = {
@@ -26,28 +26,88 @@ export const INITIAL_BUILDINGS: string[] = [
   'Edificio Central',
   'Edificio Cultural',
   'Edificio de Servicios',
-  'Campus Externo'
+  'Campus Externo',
 ];
 
 // Deduce el tipo de área institucional a partir del nombre de la ubicación
 export function inferAreaType(name: string): AreaType {
-  const s = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (s.includes('data') || s.includes('server') || s.includes('servidor') || s.includes('rack') || s.includes('ups') || s.includes('switch') || s.includes('cableado')) {
+  const s = name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  if (
+    s.includes('data') ||
+    s.includes('server') ||
+    s.includes('servidor') ||
+    s.includes('rack') ||
+    s.includes('ups') ||
+    s.includes('switch') ||
+    s.includes('cableado')
+  ) {
     return 'datacenter';
   }
-  if (s.includes('lab') || s.includes('computo') || s.includes('sistemas') || s.includes('informatica') || s.includes('fisica') || s.includes('quimica') || s.includes('robotica') || s.includes('maker') || s.includes('stem')) {
+  if (
+    s.includes('lab') ||
+    s.includes('computo') ||
+    s.includes('sistemas') ||
+    s.includes('informatica') ||
+    s.includes('fisica') ||
+    s.includes('quimica') ||
+    s.includes('robotica') ||
+    s.includes('maker') ||
+    s.includes('stem')
+  ) {
     return 'laboratorio';
   }
-  if (s.includes('aula') || s.includes('salon') || s.includes('clase') || s.includes('grado') || s.includes('biblioteca') || s.includes('docente') || s.includes('preescolar') || s.includes('primaria') || s.includes('bachillerato')) {
+  if (
+    s.includes('aula') ||
+    s.includes('salon') ||
+    s.includes('clase') ||
+    s.includes('grado') ||
+    s.includes('biblioteca') ||
+    s.includes('docente') ||
+    s.includes('preescolar') ||
+    s.includes('primaria') ||
+    s.includes('bachillerato')
+  ) {
     return 'aula';
   }
-  if (s.includes('oficina') || s.includes('admin') || s.includes('coordinacion') || s.includes('rectoria') || s.includes('secretaria') || s.includes('psicologia') || s.includes('sala de juntas') || s.includes('direccion') || s.includes('contabilidad') || s.includes('admision')) {
+  if (
+    s.includes('oficina') ||
+    s.includes('admin') ||
+    s.includes('coordinacion') ||
+    s.includes('rectoria') ||
+    s.includes('secretaria') ||
+    s.includes('psicologia') ||
+    s.includes('sala de juntas') ||
+    s.includes('direccion') ||
+    s.includes('contabilidad') ||
+    s.includes('admision')
+  ) {
     return 'oficina';
   }
-  if (s.includes('auditorio') || s.includes('teatro') || s.includes('coliseo') || s.includes('cancha') || s.includes('polideportivo') || s.includes('gimnasio') || s.includes('evento')) {
+  if (
+    s.includes('auditorio') ||
+    s.includes('teatro') ||
+    s.includes('coliseo') ||
+    s.includes('cancha') ||
+    s.includes('polideportivo') ||
+    s.includes('gimnasio') ||
+    s.includes('evento')
+  ) {
     return 'auditorio';
   }
-  if (s.includes('infra') || s.includes('electr') || s.includes('red') || s.includes('planta') || s.includes('subestacion') || s.includes('tablero') || s.includes('bomba') || s.includes('caldera') || s.includes('cuarto')) {
+  if (
+    s.includes('infra') ||
+    s.includes('electr') ||
+    s.includes('red') ||
+    s.includes('planta') ||
+    s.includes('subestacion') ||
+    s.includes('tablero') ||
+    s.includes('bomba') ||
+    s.includes('caldera') ||
+    s.includes('cuarto')
+  ) {
     return 'infraestructura';
   }
   return 'otro';
@@ -59,42 +119,95 @@ export function inferBuilding(
   existingBuildings: string[] = INITIAL_BUILDINGS,
   defaultBuilding: string = 'Edificio Central'
 ): string {
-  const s = locationName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const s = locationName
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
 
   // Verificar si menciona un edificio existente
   for (const b of existingBuildings) {
-    const bNorm = b.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const bNorm = b
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
     if (s.includes(bNorm)) {
       return b;
     }
   }
 
-  if (s.includes('bachillerato') || s.includes('secundaria') || s.includes('media') || s.includes('decimo') || s.includes('once') || s.includes('bach')) {
+  if (
+    s.includes('bachillerato') ||
+    s.includes('secundaria') ||
+    s.includes('media') ||
+    s.includes('decimo') ||
+    s.includes('once') ||
+    s.includes('bach')
+  ) {
     const found = existingBuildings.find((b) => b.toLowerCase().includes('bachillerato'));
     return found || 'Bloque Bachillerato';
   }
 
-  if (s.includes('primaria') || s.includes('preescolar') || s.includes('infantil') || s.includes('kinder') || s.includes('transicion') || s.includes('prim')) {
+  if (
+    s.includes('primaria') ||
+    s.includes('preescolar') ||
+    s.includes('infantil') ||
+    s.includes('kinder') ||
+    s.includes('transicion') ||
+    s.includes('prim')
+  ) {
     const found = existingBuildings.find((b) => b.toLowerCase().includes('primaria'));
     return found || 'Bloque Primaria';
   }
 
-  if (s.includes('admin') || s.includes('rectoria') || s.includes('secretaria') || s.includes('admision') || s.includes('datacenter') || s.includes('server') || s.includes('coordinacion') || s.includes('ti')) {
+  if (
+    s.includes('admin') ||
+    s.includes('rectoria') ||
+    s.includes('secretaria') ||
+    s.includes('admision') ||
+    s.includes('datacenter') ||
+    s.includes('server') ||
+    s.includes('coordinacion') ||
+    s.includes('ti')
+  ) {
     const found = existingBuildings.find((b) => b.toLowerCase().includes('admin'));
     return found || 'Edificio Administrativo';
   }
 
-  if (s.includes('biblioteca') || s.includes('auditorio') || s.includes('teatro') || s.includes('cultural') || s.includes('musica') || s.includes('arte') || s.includes('danza')) {
+  if (
+    s.includes('biblioteca') ||
+    s.includes('auditorio') ||
+    s.includes('teatro') ||
+    s.includes('cultural') ||
+    s.includes('musica') ||
+    s.includes('arte') ||
+    s.includes('danza')
+  ) {
     const found = existingBuildings.find((b) => b.toLowerCase().includes('cultural'));
     return found || 'Edificio Cultural';
   }
 
-  if (s.includes('cafeteria') || s.includes('comedor') || s.includes('enfermeria') || s.includes('mantenimiento') || s.includes('almacen') || s.includes('taller') || s.includes('cocina')) {
+  if (
+    s.includes('cafeteria') ||
+    s.includes('comedor') ||
+    s.includes('enfermeria') ||
+    s.includes('mantenimiento') ||
+    s.includes('almacen') ||
+    s.includes('taller') ||
+    s.includes('cocina')
+  ) {
     const found = existingBuildings.find((b) => b.toLowerCase().includes('servicio'));
     return found || 'Edificio de Servicios';
   }
 
-  if (s.includes('cancha') || s.includes('patio') || s.includes('exterior') || s.includes('porteria') || s.includes('parqueadero') || s.includes('acceso') || s.includes('coliseo')) {
+  if (
+    s.includes('cancha') ||
+    s.includes('patio') ||
+    s.includes('exterior') ||
+    s.includes('porteria') ||
+    s.includes('parqueadero') ||
+    s.includes('acceso') ||
+    s.includes('coliseo')
+  ) {
     const found = existingBuildings.find((b) => b.toLowerCase().includes('externo'));
     return found || 'Campus Externo';
   }
@@ -103,13 +216,33 @@ export function inferBuilding(
 }
 
 export const MONTH_NAMES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
 ];
 
 export const MONTH_SHORT_NAMES = [
-  'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
-  'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+  'Ene',
+  'Feb',
+  'Mar',
+  'Abr',
+  'May',
+  'Jun',
+  'Jul',
+  'Ago',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dic',
 ];
 
 // Calcula los 12 meses por defecto para una frecuencia
@@ -229,186 +362,14 @@ export function formatLocalDateTime(date: Date = new Date()): string {
   return `${formatLocalDate(date)} ${hh}:${mm}`;
 }
 
-// Seed inicial representativo para el Colegio FCBV
-const INITIAL_EQUIPMENTS: Equipment[] = [
-  {
-    id: 'eq-ap-01',
-    code: 'AP-01',
-    name: 'Access Point Wi-Fi 6 Cisco Catalyst 9115AX',
-    location: 'Sala de Cómputo Bachillerato 1',
-    brand: 'Cisco',
-    model: 'C9115AXI-A',
-    serial: 'FOC241923K4',
-    parts: ['Fuente de alimentación PoE', 'Antenas omnidireccionales', 'Puerto RJ-45 Gigabit', 'Chasis de disipación'],
-    maintenanceTasks: [
-      'Limpieza externa y remoción de polvo en rendijas de ventilación',
-      'Inspección del cableado estructurado Cat6A y conector RJ45',
-      'Verificación de potencia de transmisión y canal de radio',
-      'Actualización/comprobación de firmware en Cisco DNA Spaces',
-      'Prueba de velocidad y cobertura con analizador de espectro'
-    ],
-    frequency: 'trimestral',
-    status: 'activo',
-    observations: 'Equipo crítico para exámenes virtuales Cambridge y pruebas Saber 11.',
-    createdAt: '2025-01-10T08:00:00.000Z',
-    updatedAt: '2025-01-10T08:00:00.000Z',
-  },
-  {
-    id: 'eq-sw-01',
-    code: 'SW-01',
-    name: 'Switch Core Capa 3 Cisco Catalyst 3850 48P PoE+',
-    location: 'Data Center Principal - Rack A1',
-    brand: 'Cisco',
-    model: 'WS-C3850-48P-L',
-    serial: 'FCW1948B03L',
-    parts: ['Fuentes redundantes duales 1100W', 'Módulo de 4 ventiladores extractores', 'Módulo uplink 10G SFP+', 'Tarjeta de apilamiento StackWise-480'],
-    maintenanceTasks: [
-      'Aspirado de tolvas y limpieza profunda de ventiladores',
-      'Inspección termográfica de fuentes de alimentación PoE',
-      'Revisión de logs del sistema y errores CRC en puertos troncales',
-      'Respaldo de la configuración Running-Config a servidor TFTP',
-      'Prueba de conmutación por falla de fuente redundante'
-    ],
-    frequency: 'semestral',
-    status: 'activo',
-    observations: 'Columna vertebral de la red de todo el campus escolar.',
-    createdAt: '2025-01-12T09:30:00.000Z',
-    updatedAt: '2025-01-12T09:30:00.000Z',
-  },
-  {
-    id: 'eq-pc-01',
-    code: 'PC-01',
-    name: 'Estación de Trabajo Servidor de Dominio / Active Directory',
-    location: 'Oficina de Sistemas y Tecnología',
-    brand: 'Dell',
-    model: 'OptiPlex 7090 Tower',
-    serial: '8GK3TX2',
-    parts: ['Procesador Intel Core i7-11700', '32GB RAM DDR4 Kingston', 'Arreglo RAID 1 NVMe 1TB', 'Fuente de poder 80 Plus Gold 500W'],
-    maintenanceTasks: [
-      'Limpieza física interna, lubricación de ventiladores y cambio de pasta térmica',
-      'Verificación del estado de salud SMART de discos SSD NVMe',
-      'Limpieza de archivos temporales y optimización de base de datos AD',
-      'Comprobación de copia de seguridad local y en nube',
-      'Prueba de reinicio controlado y servicios DNS/DHCP'
-    ],
-    frequency: 'trimestral',
-    status: 'activo',
-    observations: 'Autentica a todos los docentes, administrativos y estudiantes del colegio.',
-    createdAt: '2025-01-15T11:00:00.000Z',
-    updatedAt: '2025-01-15T11:00:00.000Z',
-  },
-  {
-    id: 'eq-py-01',
-    code: 'PY-01',
-    name: 'Proyector Interactivo Láser Epson BrightLink 735Fi',
-    location: 'Auditorio Principal San Lucas',
-    brand: 'Epson',
-    model: 'BrightLink 735Fi',
-    serial: 'X79K019482',
-    parts: ['Fuente de luz láser', 'Módulo óptico ultra corto', 'Filtro de aire electrostático', 'Sensores táctiles interactivos Finger-touch'],
-    maintenanceTasks: [
-      'Extracción y soplado del filtro de aire y conducto óptico',
-      'Limpieza de lente con solución óptica antiestática',
-      'Calibración de los lápices interactivos y alineación de la imagen',
-      'Revisión del número de horas del motor láser y temperatura de operación',
-      'Ajuste mecánico del soporte de montaje en pared'
-    ],
-    frequency: 'trimestral',
-    status: 'activo',
-    observations: 'Utilizado para asambleas de padres, grados y eventos institucionales.',
-    createdAt: '2025-01-18T14:20:00.000Z',
-    updatedAt: '2025-01-18T14:20:00.000Z',
-  },
-  {
-    id: 'eq-ups-01',
-    code: 'UPS-01',
-    name: 'Sistema de Energía Ininterrumpida Online APC Smart-UPS RT 10kVA',
-    location: 'Data Center Principal - Sala de Respaldo Eléctrico',
-    brand: 'APC by Schneider Electric',
-    model: 'SRT10KXLI',
-    serial: 'AS1934293810',
-    parts: ['Banco de 32 baterías 12V 9Ah VRLA', 'Módulo inversor estático', 'Bypass automático y manual', 'Tarjeta de gestión de red SNMP AP9631'],
-    maintenanceTasks: [
-      'Medición de voltaje individual y resistencia interna por cada celda de batería',
-      'Inspección termográfica de bornes de conexión y torque de tornillería',
-      'Simulación de corte de energía con transferencia a modo batería bajo carga real',
-      'Prueba de sensores de temperatura y humedad ambiental de la sala',
-      'Limpieza de ventiladores y revisión de alarmas en el log SNMP'
-    ],
-    frequency: 'mensual',
-    status: 'activo',
-    observations: 'Protege servidores de calificaciones, conmutación de red y telefonía IP.',
-    createdAt: '2025-01-20T10:00:00.000Z',
-    updatedAt: '2025-01-20T10:00:00.000Z',
-  },
-  {
-    id: 'eq-aa-01',
-    code: 'AA-01',
-    name: 'Unidad de Climatización de Precisión InRow 5TR',
-    location: 'Data Center Principal',
-    brand: 'Liebert Emerson',
-    model: 'CRV-CR020',
-    serial: 'EM1840291-C',
-    parts: ['Compresor Scroll digital', 'Filtros de aire MERV 11', 'Bomba de drenaje de condensado', 'Ventiladores EC de velocidad variable'],
-    maintenanceTasks: [
-      'Lavado y desinfección de serpentines evaporador y condensador',
-      'Sustitución/lavado de filtros de aire de partículas finas',
-      'Medición de presiones de gas refrigerante R-410A y recalentamiento',
-      'Verificación y prueba del flotador de la bomba de drenaje de condensado',
-      'Calibración de sonda de temperatura y control digital'
-    ],
-    frequency: 'mensual',
-    status: 'activo',
-    observations: 'Mantiene temperatura constante a 20°C y 50% humedad en servidores.',
-    createdAt: '2025-01-22T08:30:00.000Z',
-    updatedAt: '2025-01-22T08:30:00.000Z',
-  },
-  {
-    id: 'eq-sw-02',
-    code: 'SW-02',
-    name: 'Switch de Distribución Cisco SG350-28P Gigabit PoE',
-    location: 'Edificio Primaria - Rack Piso 2',
-    brand: 'Cisco',
-    model: 'SG350-28P',
-    serial: 'DNI2209124A',
-    parts: ['Fuente de alimentación integrada', '2 Ventiladores laterales', '24 Puertos 10/100/1000 + 2 SFP'],
-    maintenanceTasks: [
-      'Soplado de polvo y verificación de giro libre de ventiladores',
-      'Revisión física del patch cord y marcado de puertos',
-      'Comprobación de consumo de potencia PoE por puerto',
-      'Copia de seguridad del archivo de configuración'
-    ],
-    frequency: 'semestral',
-    status: 'activo',
-    observations: 'Alimenta las cámaras de seguridad y puntos de acceso del bloque de primaria.',
-    createdAt: '2025-02-01T09:00:00.000Z',
-    updatedAt: '2025-02-01T09:00:00.000Z',
-  },
-  {
-    id: 'eq-py-02',
-    code: 'PY-02',
-    name: 'Proyector Multimedia BenQ MX560 (Antiguo)',
-    location: 'Depósito General de Tecnología',
-    brand: 'BenQ',
-    model: 'MX560',
-    serial: 'PDD1837482',
-    parts: ['Lámpara de mercurio 200W', 'Rueda de color DLP', 'Balasto electrónico'],
-    maintenanceTasks: ['Inspección general de componentes'],
-    frequency: 'anual',
-    status: 'baja',
-    observations: 'Equipo dado de baja por fin de vida útil y falla en balasto.',
-    createdAt: '2024-03-01T09:00:00.000Z',
-    updatedAt: '2024-11-15T10:00:00.000Z',
-  },
-];
-
 export const INITIAL_LOCATIONS: CampusLocation[] = [
   {
     id: 'loc-dc-01',
     name: 'Data Center Principal',
     building: 'Edificio Administrativo',
     areaType: 'datacenter',
-    description: 'Sala de servidores central, control de temperatura de precisión y acceso con tarjeta biométrica.',
+    description:
+      'Sala de servidores central, control de temperatura de precisión y acceso con tarjeta biométrica.',
     status: 'activa',
     createdAt: '2025-01-01T08:00:00.000Z',
     updatedAt: '2025-01-01T08:00:00.000Z',
@@ -527,83 +488,60 @@ export const INITIAL_LOCATIONS: CampusLocation[] = [
 
 const IS_CLEARED_KEY = 'fcbv_is_cleared_v1';
 
-const INITIAL_EXECUTIONS_SEED: MaintenanceExecution[] = [
-  {
-    id: 'exec_eq-ups-01_2026_1',
-    equipmentId: 'eq-ups-01',
-    year: 2026,
-    month: 1,
-    scheduledDate: '2026-01-16',
-    isExecuted: true,
-    executedDate: '2026-01-16 10:45',
-    responsibleName: 'Ing. Carlos Mendoza',
-    responsibleRole: 'Líder de Infraestructura y Mantenimiento FCBV',
-    signatureDataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-    completedTasks: [
-      'Medición de voltaje individual y resistencia interna por cada celda de batería',
-      'Inspección termográfica de bornes de conexión y torque de tornillería',
-      'Limpieza de ventiladores y revisión de alarmas en el log SNMP'
-    ],
-    observations: 'Baterías operando al 98% de capacidad nominal. Sin alarmas en el bus.',
-    createdAt: '2026-01-16T10:45:00.000Z',
-    updatedAt: '2026-01-16T10:45:00.000Z',
-  },
-  {
-    id: 'exec_eq-aa-01_2026_1',
-    equipmentId: 'eq-aa-01',
-    year: 2026,
-    month: 1,
-    scheduledDate: '2026-01-23',
-    isExecuted: true,
-    executedDate: '2026-01-23 15:30',
-    responsibleName: 'Téc. Andrés Peña',
-    responsibleRole: 'Técnico Especialista Climatización',
-    signatureDataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-    completedTasks: [
-      'Lavado y desinfección de serpentines evaporador y condensador',
-      'Sustitución/lavado de filtros de aire de partículas finas',
-      'Calibración de sonda de temperatura y control digital'
-    ],
-    observations: 'Filtros reemplazados por repuestos nuevos MERV 11.',
-    partsReplaced: ['2x Filtros MERV 11'],
-    createdAt: '2026-01-23T15:30:00.000Z',
-    updatedAt: '2026-01-23T15:30:00.000Z',
-  },
-  {
-    id: 'exec_eq-ap-01_2026_3',
-    equipmentId: 'eq-ap-01',
-    year: 2026,
-    month: 3,
-    scheduledDate: '2026-03-12',
-    isExecuted: true,
-    executedDate: '2026-03-12 11:15',
-    responsibleName: 'Ing. Carlos Mendoza',
-    responsibleRole: 'Líder de Infraestructura y Mantenimiento FCBV',
-    signatureDataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-    completedTasks: [
-      'Limpieza externa y remoción de polvo en rendijas de ventilación',
-      'Inspección del cableado estructurado Cat6A y conector RJ45',
-      'Verificación de potencia de transmisión y canal de radio',
-      'Prueba de velocidad y cobertura con analizador de espectro'
-    ],
-    observations: 'Firmware verificado versión 17.9.4a. Cobertura óptima.',
-    createdAt: '2026-03-12T11:15:00.000Z',
-    updatedAt: '2026-03-12T11:15:00.000Z',
-  }
-];
-
 // Helper para obtener el almacenamiento local
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('fcbv_token');
   return {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
+    Authorization: `Bearer ${token}`,
   };
 };
 
-const apiCall = async (url: string, method: string = 'GET', body?: any) => {
-  const res = await fetch(url, { method, headers: getAuthHeaders(), body: body ? JSON.stringify(body) : undefined });
+export interface SyncConflictDetails {
+  entity?: string;
+  revision?: number;
+}
+
+/**
+ * Error de conflicto de concurrencia (HTTP 409). Ocurre cuando otro usuario
+ * guardó cambios después de que este cliente leyó los datos.
+ */
+export class SyncConflictError extends Error {
+  readonly code = 'SYNC_CONFLICT';
+  readonly entity?: string;
+  readonly revision?: number;
+
+  constructor(message: string, details: SyncConflictDetails = {}) {
+    super(message);
+    this.name = 'SyncConflictError';
+    this.entity = details.entity;
+    this.revision = details.revision;
+  }
+}
+
+// Revisión conocida por este cliente para cada entidad sincronizada.
+const syncRevisions: Record<string, number> = {};
+
+const parseErrorPayload = async (res: Response): Promise<any> => {
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+};
+
+const apiRequest = async (
+  url: string,
+  method: string = 'GET',
+  body?: any,
+  options: { entity?: string } = {}
+): Promise<any> => {
+  const res = await fetch(url, {
+    method,
+    headers: getAuthHeaders(),
+    body: body ? JSON.stringify(body) : undefined,
+  });
 
   // Sesión inválida o expirada: limpiar credenciales y avisar a la app
   if (res.status === 401) {
@@ -615,35 +553,90 @@ const apiCall = async (url: string, method: string = 'GET', body?: any) => {
     throw new Error('Sesión expirada. Inicie sesión nuevamente.');
   }
 
-  if (!res.ok) {
-    if (res.status === 413) {
-      throw new Error('El tamaño de la carga excede el límite permitido por el servidor web (413 Payload Too Large). Verifique client_max_body_size en Nginx.');
-    }
-    const text = await res.text();
-    try {
-      const errJson = JSON.parse(text);
-      throw new Error(errJson.error || `Error del servidor (${res.status})`);
-    } catch {
-      throw new Error(`Error de comunicación con el servidor (HTTP ${res.status})`);
-    }
+  if (res.status === 413) {
+    throw new Error(
+      'El tamaño de la carga excede el límite permitido por el servidor web (413 Payload Too Large). Verifique client_max_body_size en Nginx.'
+    );
   }
+
+  if (res.status === 409) {
+    const errJson = await parseErrorPayload(res);
+    const message =
+      errJson?.error ||
+      'Otro usuario modificó los datos mientras editaba. Recargue la información e intente de nuevo.';
+    const conflict = new SyncConflictError(message, {
+      entity: options.entity,
+      revision: typeof errJson?.revision === 'number' ? errJson.revision : undefined,
+    });
+    // Permite que la app reaccione (avisar y recargar) sin acoplar aquí la UI.
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('fcbv:sync-conflict', { detail: { entity: options.entity, message } })
+      );
+    }
+    throw conflict;
+  }
+
+  if (!res.ok) {
+    const errJson = await parseErrorPayload(res);
+    throw new Error(errJson?.error || `Error de comunicación con el servidor (HTTP ${res.status})`);
+  }
+
   const data = await res.json();
   if (!data.success) throw new Error(data.error || 'API Error');
+  return data;
+};
+
+const apiCall = async (url: string, method: string = 'GET', body?: any) => {
+  const data = await apiRequest(url, method, body);
   return data.data !== undefined ? data.data : data;
 };
 
+// --- Acceso a las entidades sincronizadas con bloqueo optimista ---
+
+async function syncGet<T>(entity: string): Promise<T> {
+  const response = await apiRequest(`/api/sync/${entity}`, 'GET', undefined, { entity });
+  if (typeof response.revision === 'number') {
+    syncRevisions[entity] = response.revision;
+  }
+  return response.data as T;
+}
+
+async function syncPost(entity: string, data: unknown): Promise<void> {
+  // Si aún no se conoce la revisión, se lee primero para no escribir a ciegas.
+  if (syncRevisions[entity] === undefined) {
+    await syncGet(entity);
+  }
+
+  const response = await apiRequest(
+    `/api/sync/${entity}`,
+    'POST',
+    { data, expectedRevision: syncRevisions[entity] },
+    { entity }
+  );
+
+  if (typeof response.revision === 'number') {
+    syncRevisions[entity] = response.revision;
+  }
+}
+
 export const StorageService = {
   async getEquipmentList(): Promise<Equipment[]> {
-    return await apiCall('/api/sync/equipments');
+    return await syncGet<Equipment[]>('equipments');
   },
 
   async saveEquipmentList(list: Equipment[]): Promise<void> {
-    try { await apiCall('/api/sync/equipments', 'POST', list); } catch(e) { console.error(e); throw e; }
+    try {
+      await syncPost('equipments', list);
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
   },
 
   // Obtiene la matriz anual para un año específico
   async getAnnualPlan(year: number): Promise<Record<string, boolean[]>> {
-    const plans = await apiCall('/api/sync/annualPlans');
+    const plans = await syncGet<Record<string, Record<string, boolean[]>>>('annualPlans');
     if (plans[year]) return plans[year];
 
     // Generar automáticamente a partir de los equipos registrados
@@ -662,11 +655,14 @@ export const StorageService = {
   },
 
   async saveAnnualPlan(year: number, plan: Record<string, boolean[]>): Promise<void> {
-    try { 
-      const plans = await apiCall('/api/sync/annualPlans');
+    try {
+      const plans = await syncGet<Record<string, Record<string, boolean[]>>>('annualPlans');
       plans[year] = plan;
-      await apiCall('/api/sync/annualPlans', 'POST', plans); 
-    } catch(e) { console.error(e); throw e; }
+      await syncPost('annualPlans', plans);
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
   },
 
   // Sincroniza un equipo en el plan anual cuando se crea, edita o cambia su frecuencia
@@ -681,7 +677,10 @@ export const StorageService = {
   },
 
   // Actualiza masivamente la frecuencia de una lista de equipos
-  async updateEquipmentsFrequency(equipmentIds: string[], newFrequency: EquipmentFrequency): Promise<Equipment[]> {
+  async updateEquipmentsFrequency(
+    equipmentIds: string[],
+    newFrequency: EquipmentFrequency
+  ): Promise<Equipment[]> {
     const list = await this.getEquipmentList();
     const idSet = new Set(equipmentIds);
     const updated = list.map((eq) => {
@@ -700,11 +699,16 @@ export const StorageService = {
 
   // Obtiene todas las ejecuciones registradas
   async getExecutions(): Promise<MaintenanceExecution[]> {
-    return await apiCall('/api/sync/executions');
+    return await syncGet<MaintenanceExecution[]>('executions');
   },
 
   async saveExecutions(list: MaintenanceExecution[]): Promise<void> {
-    try { await apiCall('/api/sync/executions', 'POST', list); } catch(e) { console.error(e); throw e; }
+    try {
+      await syncPost('executions', list);
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
   },
 
   // Guarda o actualiza un registro individual de ejecución (preventivo o correctivo)
@@ -713,7 +717,12 @@ export const StorageService = {
     const index = list.findIndex((e) => {
       if (execution.id && e.id === execution.id) return true;
       if (execution.maintenanceType === 'correctivo') return false;
-      return e.equipmentId === execution.equipmentId && e.year === execution.year && e.month === execution.month && e.maintenanceType !== 'correctivo';
+      return (
+        e.equipmentId === execution.equipmentId &&
+        e.year === execution.year &&
+        e.month === execution.month &&
+        e.maintenanceType !== 'correctivo'
+      );
     });
     if (index >= 0) {
       list[index] = { ...list[index], ...execution, updatedAt: new Date().toISOString() };
@@ -722,7 +731,7 @@ export const StorageService = {
         ...execution,
         id: execution.id || `${execution.equipmentId}_${execution.year}_${execution.month}_${Date.now()}`,
         createdAt: execution.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
       list.push(newExecution);
     }
@@ -730,13 +739,15 @@ export const StorageService = {
   },
 
   // Registra un mantenimiento correctivo nuevo
-  async recordCorrectiveMaintenance(execution: Partial<MaintenanceExecution> & { equipmentId: string }): Promise<MaintenanceExecution> {
+  async recordCorrectiveMaintenance(
+    execution: Partial<MaintenanceExecution> & { equipmentId: string }
+  ): Promise<MaintenanceExecution> {
     const now = new Date();
     const fullExecution: MaintenanceExecution = {
       id: execution.id || `corr_${execution.equipmentId}_${Date.now()}`,
       equipmentId: execution.equipmentId,
       year: execution.year || now.getFullYear(),
-      month: execution.month || (now.getMonth() + 1),
+      month: execution.month || now.getMonth() + 1,
       scheduledDate: execution.scheduledDate || formatLocalDate(now),
       isExecuted: true,
       executedDate: execution.executedDate || formatLocalDateTime(now),
@@ -752,7 +763,7 @@ export const StorageService = {
       downtimeHours: execution.downtimeHours || 0,
       finalOperationalStatus: execution.finalOperationalStatus || 'operativo',
       createdAt: now.toISOString(),
-      updatedAt: now.toISOString()
+      updatedAt: now.toISOString(),
     };
 
     await this.upsertExecution(fullExecution);
@@ -807,11 +818,16 @@ export const StorageService = {
 
   // Obtiene la lista de ubicaciones del campus
   async getLocations(): Promise<CampusLocation[]> {
-    return await apiCall('/api/sync/locations');
+    return await syncGet<CampusLocation[]>('locations');
   },
 
   async saveLocations(list: CampusLocation[]): Promise<void> {
-    try { await apiCall('/api/sync/locations', 'POST', list); } catch(e) { console.error(e); throw e; }
+    try {
+      await syncPost('locations', list);
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
   },
 
   // Guarda o actualiza una ubicación y actualiza equipos en cascada si se renombró
@@ -843,7 +859,9 @@ export const StorageService = {
   },
 
   // Elimina una ubicación
-  async deleteLocation(locationId: string): Promise<{ success: boolean; message: string; affectedEquipmentsCount: number }> {
+  async deleteLocation(
+    locationId: string
+  ): Promise<{ success: boolean; message: string; affectedEquipmentsCount: number }> {
     const list = await this.getLocations();
     const target = list.find((l) => l.id === locationId);
     if (!target) {
@@ -856,15 +874,17 @@ export const StorageService = {
     const updatedList = list.filter((l) => l.id !== locationId);
     await await this.saveLocations(updatedList);
 
-    return { 
-      success: true, 
-      message: `Ubicación "${target.name}" eliminada correctamente.`, 
-      affectedEquipmentsCount: affected.length 
+    return {
+      success: true,
+      message: `Ubicación "${target.name}" eliminada correctamente.`,
+      affectedEquipmentsCount: affected.length,
     };
   },
 
   // Asegura que una lista de ubicaciones existan en el campus; si no existen, las crea automáticamente
-  async ensureLocationsExist(locationsToCheck: { name: string; building?: string; areaType?: AreaType; description?: string; }[]): Promise<{ createdLocations: CampusLocation[]; allLocations: CampusLocation[] }> {
+  async ensureLocationsExist(
+    locationsToCheck: { name: string; building?: string; areaType?: AreaType; description?: string }[]
+  ): Promise<{ createdLocations: CampusLocation[]; allLocations: CampusLocation[] }> {
     const list = await this.getLocations();
     const existingMap = new Map<string, CampusLocation>();
     list.forEach((l) => existingMap.set(l.name.toLowerCase().trim(), l));
@@ -883,9 +903,10 @@ export const StorageService = {
 
       if (!existingMap.has(key)) {
         const areaType: AreaType = item.areaType || inferAreaType(trimmedName);
-        const building: string = (item.building && item.building.trim())
-          ? item.building.trim()
-          : inferBuilding(trimmedName, currentBuildings);
+        const building: string =
+          item.building && item.building.trim()
+            ? item.building.trim()
+            : inferBuilding(trimmedName, currentBuildings);
 
         // Si el edificio es nuevo, registrarlo en el catálogo institucional
         if (building && !buildingsSet.has(building)) {
@@ -898,7 +919,8 @@ export const StorageService = {
           name: trimmedName,
           building: building || 'Edificio Central',
           areaType,
-          description: item.description || `Ubicación creada automáticamente al importar equipos críticos vía Excel.`,
+          description:
+            item.description || `Ubicación creada automáticamente al importar equipos críticos vía Excel.`,
           status: 'activa',
           createdAt: now,
           updatedAt: now,
@@ -925,11 +947,11 @@ export const StorageService = {
   // GESTIÓN DE EDIFICIOS Y BLOQUES INSTITUCIONALES (EDITABLES)
   // --------------------------------------------------------------------------
   async getBuildings(): Promise<string[]> {
-    return await apiCall('/api/sync/buildings');
+    return await syncGet<string[]>('buildings');
   },
 
   async saveBuildings(list: string[]): Promise<void> {
-    await apiCall('/api/sync/buildings', 'POST', list);
+    await syncPost('buildings', list);
   },
 
   async addBuilding(name: string): Promise<{ success: boolean; message: string; buildings: string[] }> {
@@ -939,22 +961,46 @@ export const StorageService = {
       return { success: false, message: 'El nombre del edificio no puede estar vacío.', buildings: list };
     }
     if (list.some((b) => b.toLowerCase() === trimmed.toLowerCase())) {
-      return { success: false, message: `El edificio o bloque "${trimmed}" ya existe en el catálogo.`, buildings: list };
+      return {
+        success: false,
+        message: `El edificio o bloque "${trimmed}" ya existe en el catálogo.`,
+        buildings: list,
+      };
     }
     const updated = [...list, trimmed];
     await this.saveBuildings(updated);
-    return { success: true, message: `Edificio o bloque "${trimmed}" agregado con éxito.`, buildings: updated };
+    return {
+      success: true,
+      message: `Edificio o bloque "${trimmed}" agregado con éxito.`,
+      buildings: updated,
+    };
   },
 
-  async renameBuilding(oldName: string, newName: string): Promise<{ success: boolean; message: string; buildings: string[]; affectedLocationsCount: number }> {
+  async renameBuilding(
+    oldName: string,
+    newName: string
+  ): Promise<{ success: boolean; message: string; buildings: string[]; affectedLocationsCount: number }> {
     const trimmedOld = oldName.trim();
     const trimmedNew = newName.trim();
     const list = await this.getBuildings();
     if (!trimmedNew) {
-      return { success: false, message: 'El nuevo nombre no puede estar vacío.', buildings: list, affectedLocationsCount: 0 };
+      return {
+        success: false,
+        message: 'El nuevo nombre no puede estar vacío.',
+        buildings: list,
+        affectedLocationsCount: 0,
+      };
     }
-    if (trimmedOld.toLowerCase() !== trimmedNew.toLowerCase() && list.some((b) => b.toLowerCase() === trimmedNew.toLowerCase())) {
-      return { success: false, message: `Ya existe un edificio con el nombre "${trimmedNew}".`, buildings: list, affectedLocationsCount: 0 };
+    if (
+      trimmedOld.toLowerCase() !== trimmedNew.toLowerCase() &&
+      list.some((b) => b.toLowerCase() === trimmedNew.toLowerCase())
+    ) {
+      return {
+        success: false,
+        message: `Ya existe un edificio con el nombre "${trimmedNew}".`,
+        buildings: list,
+        affectedLocationsCount: 0,
+      };
     }
 
     const updatedBuildings = list.map((b) => (b.toLowerCase() === trimmedOld.toLowerCase() ? trimmedNew : b));
@@ -983,7 +1029,10 @@ export const StorageService = {
     };
   },
 
-  async deleteBuilding(name: string, reassignTo?: string): Promise<{ success: boolean; message: string; buildings: string[]; affectedLocationsCount: number }> {
+  async deleteBuilding(
+    name: string,
+    reassignTo?: string
+  ): Promise<{ success: boolean; message: string; buildings: string[]; affectedLocationsCount: number }> {
     const trimmed = name.trim();
     const list = await this.getBuildings();
     const updatedBuildings = list.filter((b) => b.toLowerCase() !== trimmed.toLowerCase());
@@ -992,7 +1041,8 @@ export const StorageService = {
     // Si hay ubicaciones asociadas, reasignarlas
     const locations = await this.getLocations();
     let affected = 0;
-    const targetReassign = reassignTo && reassignTo.trim() ? reassignTo.trim() : (updatedBuildings[0] || 'Campus Principal');
+    const targetReassign =
+      reassignTo && reassignTo.trim() ? reassignTo.trim() : updatedBuildings[0] || 'Campus Principal';
 
     const updatedLocations = locations.map((loc) => {
       if (loc.building.toLowerCase() === trimmed.toLowerCase()) {
@@ -1015,7 +1065,9 @@ export const StorageService = {
   },
 
   // Limpia todos los datos demo de la app para que el usuario pueda empezar desde cero con datos reales
-  async clearAllData(options?: { preserveLocations?: boolean }): Promise<{ clearedEquipments: number; clearedLocations: number; clearedExecutions: number; }> {
+  async clearAllData(options?: {
+    preserveLocations?: boolean;
+  }): Promise<{ clearedEquipments: number; clearedLocations: number; clearedExecutions: number }> {
     const res = await apiCall('/api/database/clear-data', 'POST', options);
     return {
       clearedEquipments: res.clearedEquipments || 0,
@@ -1033,7 +1085,11 @@ export const StorageService = {
 
   // Verifica si hay datos cargados en el sistema
   async hasAnyData(): Promise<boolean> {
-    return (await this.getEquipmentList()).length > 0 || (await this.getLocations()).length > 0 || (await this.getExecutions()).length > 0;
+    return (
+      (await this.getEquipmentList()).length > 0 ||
+      (await this.getLocations()).length > 0 ||
+      (await this.getExecutions()).length > 0
+    );
   },
 
   // --------------------------------------------------------------------------
@@ -1050,12 +1106,12 @@ export const StorageService = {
   },
 
   async saveAllAnnualPlans(plans: Record<string, Record<string, boolean[]>>): Promise<void> {
-    await apiCall('/api/sync/annualPlans', 'POST', plans);
+    await syncPost('annualPlans', plans);
   },
 
   async createFullBackup(): Promise<DatabaseBackup> {
     const equipments = await this.getEquipmentList();
-    const annualPlans = await apiCall('/api/sync/annualPlans');
+    const annualPlans = await syncGet<Record<string, Record<string, boolean[]>>>('annualPlans');
     const executions = await this.getExecutions();
     const locations = await this.getLocations();
     const buildings = await this.getBuildings();
@@ -1140,10 +1196,14 @@ export const StorageService = {
 
     const equipments: Equipment[] = Array.isArray(dataPayload.equipments) ? dataPayload.equipments : [];
     const locations: CampusLocation[] = Array.isArray(dataPayload.locations) ? dataPayload.locations : [];
-    const executions: MaintenanceExecution[] = Array.isArray(dataPayload.executions) ? dataPayload.executions : [];
+    const executions: MaintenanceExecution[] = Array.isArray(dataPayload.executions)
+      ? dataPayload.executions
+      : [];
     const buildings: string[] = Array.isArray(dataPayload.buildings) ? dataPayload.buildings : [];
-    const annualPlans: Record<string, Record<string, boolean[]>> =
-      dataPayload.annualPlans && typeof dataPayload.annualPlans === 'object' ? dataPayload.annualPlans : {};
+    const annualPlans: Record<string, Record<string, boolean[]>> = dataPayload.annualPlans &&
+    typeof dataPayload.annualPlans === 'object'
+      ? dataPayload.annualPlans
+      : {};
     const technicianSignature = dataPayload.technicianSignature || null;
 
     const years = Object.keys(annualPlans)
@@ -1153,37 +1213,38 @@ export const StorageService = {
 
     const activeCount = equipments.filter((e) => e.status === 'activo').length;
 
-    const metadata: DatabaseBackupMetadata = jsonContent.metadata && typeof jsonContent.metadata === 'object'
-      ? {
-          createdAt: jsonContent.metadata.createdAt || new Date().toISOString(),
-          version: jsonContent.metadata.version || '1.0.0',
-          institution: jsonContent.metadata.institution || 'Colegio Bilingüe FCBV',
-          system: jsonContent.metadata.system || 'Sistema de Mantenimiento Preventivo de Equipos Críticos',
-          equipmentCount: {
-            total: equipments.length,
-            active: activeCount,
-            inactive: equipments.length - activeCount,
-          },
-          locationsCount: locations.length,
-          buildingsCount: buildings.length,
-          executionsCount: executions.length,
-          annualPlansYears: years,
-        }
-      : {
-          createdAt: new Date().toISOString(),
-          version: '1.0.0',
-          institution: 'Colegio Bilingüe FCBV',
-          system: 'Sistema de Mantenimiento Preventivo de Equipos Críticos',
-          equipmentCount: {
-            total: equipments.length,
-            active: activeCount,
-            inactive: equipments.length - activeCount,
-          },
-          locationsCount: locations.length,
-          buildingsCount: buildings.length,
-          executionsCount: executions.length,
-          annualPlansYears: years,
-        };
+    const metadata: DatabaseBackupMetadata =
+      jsonContent.metadata && typeof jsonContent.metadata === 'object'
+        ? {
+            createdAt: jsonContent.metadata.createdAt || new Date().toISOString(),
+            version: jsonContent.metadata.version || '1.0.0',
+            institution: jsonContent.metadata.institution || 'Colegio Bilingüe FCBV',
+            system: jsonContent.metadata.system || 'Sistema de Mantenimiento Preventivo de Equipos Críticos',
+            equipmentCount: {
+              total: equipments.length,
+              active: activeCount,
+              inactive: equipments.length - activeCount,
+            },
+            locationsCount: locations.length,
+            buildingsCount: buildings.length,
+            executionsCount: executions.length,
+            annualPlansYears: years,
+          }
+        : {
+            createdAt: new Date().toISOString(),
+            version: '1.0.0',
+            institution: 'Colegio Bilingüe FCBV',
+            system: 'Sistema de Mantenimiento Preventivo de Equipos Críticos',
+            equipmentCount: {
+              total: equipments.length,
+              active: activeCount,
+              inactive: equipments.length - activeCount,
+            },
+            locationsCount: locations.length,
+            buildingsCount: buildings.length,
+            executionsCount: executions.length,
+            annualPlansYears: years,
+          };
 
     const cleanData: DatabaseBackupData = {
       equipments,
@@ -1201,7 +1262,16 @@ export const StorageService = {
     };
   },
 
-  async restoreBackup(backupData: DatabaseBackupData, mode: 'overwrite' | 'merge' = 'overwrite'): Promise<{ success: boolean; restoredEquipments: number; restoredLocations: number; restoredExecutions: number; restoredPlansYears: number[]; }> {
+  async restoreBackup(
+    backupData: DatabaseBackupData,
+    mode: 'overwrite' | 'merge' = 'overwrite'
+  ): Promise<{
+    success: boolean;
+    restoredEquipments: number;
+    restoredLocations: number;
+    restoredExecutions: number;
+    restoredPlansYears: number[];
+  }> {
     try {
       localStorage.removeItem(IS_CLEARED_KEY);
 
@@ -1216,7 +1286,9 @@ export const StorageService = {
           await this.saveTechnicianSignature(backupData.technicianSignature);
         }
 
-        const years = Object.keys(backupData.annualPlans).map(Number).filter((n) => !isNaN(n));
+        const years = Object.keys(backupData.annualPlans)
+          .map(Number)
+          .filter((n) => !isNaN(n));
 
         return {
           success: true,
@@ -1280,7 +1352,7 @@ export const StorageService = {
         await this.saveExecutions(mergedExecutions);
 
         // 5. Planes Anuales
-        const currentPlans = await apiCall('/api/sync/annualPlans');
+        const currentPlans = await syncGet<Record<string, Record<string, boolean[]>>>('annualPlans');
         Object.entries(backupData.annualPlans).forEach(([yearKey, yearSchedule]) => {
           if (!currentPlans[yearKey]) {
             currentPlans[yearKey] = yearSchedule;
@@ -1300,7 +1372,9 @@ export const StorageService = {
           }
         }
 
-        const years = Object.keys(currentPlans).map(Number).filter((n) => !isNaN(n));
+        const years = Object.keys(currentPlans)
+          .map(Number)
+          .filter((n) => !isNaN(n));
 
         return {
           success: true,
@@ -1325,5 +1399,41 @@ export const StorageService = {
   // Guarda la firma del técnico
   async saveTechnicianSignature(signatureDataUrl: string): Promise<void> {
     await apiCall('/api/settings', 'POST', { key: 'fcbv_technician_signature', value: signatureDataUrl });
+  },
+
+  // --- Copias de seguridad del servidor (archivo SQLite) ---
+  async listServerBackups(): Promise<{ backups: ServerBackupInfo[]; settings: ServerBackupSettings }> {
+    const response = await apiRequest('/api/database/backups');
+    return {
+      backups: (response.data as ServerBackupInfo[]) ?? [],
+      settings: response.settings as ServerBackupSettings,
+    };
+  },
+
+  async createServerBackup(reason: string = 'manual'): Promise<ServerBackupInfo> {
+    const response = await apiRequest('/api/database/backups', 'POST', { reason });
+    return response.data as ServerBackupInfo;
+  },
+
+  async deleteServerBackup(filename: string): Promise<void> {
+    await apiRequest(`/api/database/backups/${encodeURIComponent(filename)}`, 'DELETE');
+  },
+
+  async downloadServerBackup(filename: string): Promise<void> {
+    const res = await fetch(`/api/database/backups/${encodeURIComponent(filename)}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('fcbv_token')}` },
+    });
+    if (!res.ok) {
+      throw new Error('No se pudo descargar la copia de seguridad del servidor.');
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   },
 };

@@ -1,29 +1,16 @@
 import React, { useState } from 'react';
-import { 
-  X, 
-  Building2, 
-  Plus, 
-  Edit3, 
-  Trash2, 
-  Check, 
-  AlertCircle, 
-  RotateCcw,
-  MapPin,
-  ArrowRight,
-  Info
-} from 'lucide-react';
-import { CampusLocation } from '../../types';
-import { INITIAL_BUILDINGS } from '../../services/storage';
+import { X, Building2, Plus, Edit3, Trash2, Check, AlertCircle, RotateCcw, Info } from 'lucide-react';
+import { CampusLocation, BuildingMutationResult } from '../../types';
 
 interface BuildingManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
   buildings: string[];
   locations: CampusLocation[];
-  onAddBuilding: (name: string) => { success: boolean; message: string };
-  onRenameBuilding: (oldName: string, newName: string) => { success: boolean; message: string; affectedLocationsCount: number };
-  onDeleteBuilding: (name: string, reassignTo?: string) => { success: boolean; message: string; affectedLocationsCount: number };
-  onResetBuildings?: () => void;
+  onAddBuilding: (name: string) => Promise<BuildingMutationResult>;
+  onRenameBuilding: (oldName: string, newName: string) => Promise<BuildingMutationResult>;
+  onDeleteBuilding: (name: string, reassignTo?: string) => Promise<BuildingMutationResult>;
+  onResetBuildings?: () => void | Promise<void>;
 }
 
 export const BuildingManagerModal: React.FC<BuildingManagerModalProps> = ({
@@ -49,15 +36,18 @@ export const BuildingManagerModal: React.FC<BuildingManagerModalProps> = ({
   if (!isOpen) return null;
 
   // Mapa de ubicaciones asociadas por edificio
-  const locationsCountByBuilding = buildings.reduce((acc, b) => {
-    const count = locations.filter(
-      (l) => l.building && l.building.toLowerCase().trim() === b.toLowerCase().trim()
-    ).length;
-    acc[b] = count;
-    return acc;
-  }, {} as Record<string, number>);
+  const locationsCountByBuilding = buildings.reduce(
+    (acc, b) => {
+      const count = locations.filter(
+        (l) => l.building && l.building.toLowerCase().trim() === b.toLowerCase().trim()
+      ).length;
+      acc[b] = count;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
@@ -67,7 +57,7 @@ export const BuildingManagerModal: React.FC<BuildingManagerModalProps> = ({
       return;
     }
 
-    const res = onAddBuilding(trimmed);
+    const res = await onAddBuilding(trimmed);
     if (!res.success) {
       setErrorMsg(res.message);
     } else {
@@ -84,7 +74,7 @@ export const BuildingManagerModal: React.FC<BuildingManagerModalProps> = ({
     setDeletingBuilding(null);
   };
 
-  const handleSaveRename = (oldName: string) => {
+  const handleSaveRename = async (oldName: string) => {
     setErrorMsg('');
     setSuccessMsg('');
     const trimmed = editName.trim();
@@ -97,7 +87,7 @@ export const BuildingManagerModal: React.FC<BuildingManagerModalProps> = ({
       return;
     }
 
-    const res = onRenameBuilding(oldName, trimmed);
+    const res = await onRenameBuilding(oldName, trimmed);
     if (!res.success) {
       setErrorMsg(res.message);
     } else {
@@ -107,7 +97,6 @@ export const BuildingManagerModal: React.FC<BuildingManagerModalProps> = ({
   };
 
   const startDeleting = (b: string) => {
-    const affectedCount = locationsCountByBuilding[b] || 0;
     setDeletingBuilding(b);
     setEditingBuilding(null);
     setErrorMsg('');
@@ -117,9 +106,9 @@ export const BuildingManagerModal: React.FC<BuildingManagerModalProps> = ({
     setReassignTarget(remaining[0] || 'Campus Principal');
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deletingBuilding) return;
-    const res = onDeleteBuilding(deletingBuilding, reassignTarget);
+    const res = await onDeleteBuilding(deletingBuilding, reassignTarget);
     if (!res.success) {
       setErrorMsg(res.message);
     } else {
@@ -207,9 +196,7 @@ export const BuildingManagerModal: React.FC<BuildingManagerModalProps> = ({
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-600">
               Edificios y Bloques Registrados ({buildings.length})
             </span>
-            <span className="text-[11px] text-slate-400">
-              Ubicaciones asociadas
-            </span>
+            <span className="text-[11px] text-slate-400">Ubicaciones asociadas</span>
           </div>
 
           <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden bg-white shadow-2xs">
@@ -227,7 +214,8 @@ export const BuildingManagerModal: React.FC<BuildingManagerModalProps> = ({
                         <p>¿Eliminar el edificio "{b}"?</p>
                         {locationCount > 0 ? (
                           <p className="font-normal text-rose-700 mt-1">
-                            Hay <strong>{locationCount}</strong> ubicaciones registradas en este edificio. Seleccione a qué edificio desea reasignarlas:
+                            Hay <strong>{locationCount}</strong> ubicaciones registradas en este edificio.
+                            Seleccione a qué edificio desea reasignarlas:
                           </p>
                         ) : (
                           <p className="font-normal text-rose-700 mt-1">
@@ -314,9 +302,7 @@ export const BuildingManagerModal: React.FC<BuildingManagerModalProps> = ({
                     <>
                       <div className="flex items-center gap-2.5 min-w-0">
                         <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
-                        <span className="text-xs font-semibold text-slate-800 truncate">
-                          {b}
-                        </span>
+                        <span className="text-xs font-semibold text-slate-800 truncate">{b}</span>
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -364,7 +350,8 @@ export const BuildingManagerModal: React.FC<BuildingManagerModalProps> = ({
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-[11px] text-slate-600 flex items-start gap-2">
             <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
             <span>
-              Al renombrar un edificio o bloque, todas las salas, laboratorios y oficinas vinculadas a ese edificio se actualizan de forma instantánea.
+              Al renombrar un edificio o bloque, todas las salas, laboratorios y oficinas vinculadas a ese
+              edificio se actualizan de forma instantánea.
             </span>
           </div>
         </div>

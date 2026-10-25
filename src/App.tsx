@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Equipment, EquipmentFrequency, MaintenanceExecution, CampusLocation, AreaType } from './types';
+import { Equipment, EquipmentFrequency, MaintenanceExecution, CampusLocation } from './types';
 import { StorageService, getDefaultMonthsForFrequency } from './services/storage';
 import { ActiveTab } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
@@ -19,7 +19,18 @@ import { DashboardView } from './components/DashboardView';
 import { EquipmentScannerModal } from './components/Scanner/EquipmentScannerModal';
 import { BulkQrPrintModal } from './components/EquipmentModule/BulkQrPrintModal';
 import { CorrectiveMaintenanceModal } from './components/ExecutionModule/CorrectiveMaintenanceModal';
-import { CheckCircle, AlertCircle, Info, Database, HelpCircle, Trash2, RotateCcw, X, Shield, Menu } from 'lucide-react';
+import {
+  CheckCircle,
+  AlertCircle,
+  Info,
+  Database,
+  HelpCircle,
+  Trash2,
+  RotateCcw,
+  X,
+  Shield,
+  Menu,
+} from 'lucide-react';
 import { ClearDataModal } from './components/ClearDataModal';
 
 export default function App() {
@@ -40,21 +51,21 @@ export default function App() {
     // Validar token al cargar
     if (token) {
       fetch('/api/auth/me', {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          setUser(data.user);
-          if (data.user.role === 'revisor') {
-            setActiveTab('reportes');
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            setUser(data.user);
+            if (data.user.role === 'revisor') {
+              setActiveTab('reportes');
+            }
+          } else {
+            handleLogout();
           }
-        } else {
-          handleLogout();
-        }
-      })
-      .catch(() => handleLogout())
-      .finally(() => setIsAuthLoading(false));
+        })
+        .catch(() => handleLogout())
+        .finally(() => setIsAuthLoading(false));
     } else {
       setIsAuthLoading(false);
     }
@@ -65,7 +76,7 @@ export default function App() {
     localStorage.setItem('fcbv_user', JSON.stringify(newUser));
     setToken(newToken);
     setUser(newUser);
-    
+
     if (newUser.role === 'revisor') {
       setActiveTab('reportes');
     } else {
@@ -107,7 +118,9 @@ export default function App() {
       .catch(() => {
         if (!cancelled) setTechnicianSignature(null);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   // ... (Rest of existing state variables)
@@ -137,8 +150,11 @@ export default function App() {
   const [isBulkQrPrintOpen, setIsBulkQrPrintOpen] = useState(false);
   const [bulkQrPrintInitialIds, setBulkQrPrintInitialIds] = useState<string[]>([]);
   const [isCorrectiveModalOpen, setIsCorrectiveModalOpen] = useState(false);
-  const [selectedEquipmentForCorrective, setSelectedEquipmentForCorrective] = useState<Equipment | null>(null);
-  const [selectedExecutionForCorrective, setSelectedExecutionForCorrective] = useState<MaintenanceExecution | null>(null);
+  const [selectedEquipmentForCorrective, setSelectedEquipmentForCorrective] = useState<Equipment | null>(
+    null
+  );
+  const [selectedExecutionForCorrective, setSelectedExecutionForCorrective] =
+    useState<MaintenanceExecution | null>(null);
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
@@ -163,7 +179,9 @@ export default function App() {
       .catch((e: any) => {
         if (!cancelled) showToast(`No se pudo cargar el cronograma: ${e.message}`, 'error');
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [selectedYear, user]);
 
   const loadData = async (year: number) => {
@@ -187,6 +205,21 @@ export default function App() {
     }
   };
 
+  // Bloqueo optimista: si otro usuario guarda a la vez, el servidor responde
+  // 409. Avisamos y recargamos para evitar seguir trabajando sobre datos viejos.
+  useEffect(() => {
+    const onSyncConflict = (event: Event) => {
+      const detail = (event as CustomEvent<{ message?: string }>).detail;
+      showToast(detail?.message || 'Otro usuario modificó los datos. Se recargó la información.', 'error');
+      if (user) {
+        void loadData(selectedYear);
+      }
+    };
+
+    window.addEventListener('fcbv:sync-conflict', onSyncConflict);
+    return () => window.removeEventListener('fcbv:sync-conflict', onSyncConflict);
+  }, [user, selectedYear]);
+
   // --------------------------------------------------------------------------
   // Manejadores de Equipos
   // --------------------------------------------------------------------------
@@ -194,7 +227,10 @@ export default function App() {
     if (user?.role !== 'admin') return;
 
     // Check for duplicate code
-    const isDuplicateCode = equipments.some((e) => e.code.toUpperCase().trim() === equipmentData.code.toUpperCase().trim() && e.id !== equipmentData.id);
+    const isDuplicateCode = equipments.some(
+      (e) =>
+        e.code.toUpperCase().trim() === equipmentData.code.toUpperCase().trim() && e.id !== equipmentData.id
+    );
     if (isDuplicateCode) {
       showToast(`Error: Ya existe un equipo con el código ${equipmentData.code}.`, 'error');
       return;
@@ -212,9 +248,11 @@ export default function App() {
 
     try {
       await StorageService.saveEquipmentList(updatedList);
-      
+
       setEquipments(updatedList);
-      showToast(`Equipo ${equipmentData.code} ${existingIndex >= 0 ? 'actualizado' : 'registrado'} con éxito.`);
+      showToast(
+        `Equipo ${equipmentData.code} ${existingIndex >= 0 ? 'actualizado' : 'registrado'} con éxito.`
+      );
 
       const updatedPlan = { ...planMatrix };
       if (equipmentData.status === 'activo') {
@@ -236,7 +274,7 @@ export default function App() {
 
   const handleToggleEquipmentStatus = async (equipment: Equipment) => {
     if (user?.role !== 'admin') return;
-    const newStatus = equipment.status === 'activo' ? 'baja' : 'activo';
+    const newStatus: Equipment['status'] = equipment.status === 'activo' ? 'baja' : 'activo';
     const updated = { ...equipment, status: newStatus, updatedAt: new Date().toISOString() };
     const updatedList = equipments.map((e) => (e.id === equipment.id ? updated : e));
 
@@ -259,7 +297,10 @@ export default function App() {
     }
   };
 
-  const handleImportSuccess = async (importedEquipments: Equipment[], newLocationsToCreate?: CampusLocation[]) => {
+  const handleImportSuccess = async (
+    importedEquipments: Equipment[],
+    newLocationsToCreate?: CampusLocation[]
+  ) => {
     if (user?.role !== 'admin') return;
 
     // Remove duplicates
@@ -286,29 +327,37 @@ export default function App() {
     }
 
     const combined = [...validImportedEquipments, ...equipments];
-    
+
     try {
       await StorageService.saveEquipmentList(combined);
       setEquipments(combined);
 
       const updatedPlan = { ...planMatrix };
       validImportedEquipments.forEach((eq) => {
-        updatedPlan[eq.id] = eq.status === 'activo' 
-          ? getDefaultMonthsForFrequency(eq.frequency, eq.customMonths) 
-          : new Array(12).fill(false);
+        updatedPlan[eq.id] =
+          eq.status === 'activo'
+            ? getDefaultMonthsForFrequency(eq.frequency, eq.customMonths)
+            : new Array(12).fill(false);
       });
       setPlanMatrix(updatedPlan);
       await StorageService.saveAnnualPlan(selectedYear, updatedPlan);
 
       const locationsToVerify: any[] = [];
       if (newLocationsToCreate && newLocationsToCreate.length > 0) {
-        newLocationsToCreate.forEach((nl) => locationsToVerify.push({ name: nl.name, building: nl.building, areaType: nl.areaType, description: nl.description }));
+        newLocationsToCreate.forEach((nl) =>
+          locationsToVerify.push({
+            name: nl.name,
+            building: nl.building,
+            areaType: nl.areaType,
+            description: nl.description,
+          })
+        );
       }
       validImportedEquipments.forEach((eq) => {
         if (eq.location && eq.location.trim()) locationsToVerify.push({ name: eq.location.trim() });
       });
 
-      const { createdLocations, allLocations } = await StorageService.ensureLocationsExist(locationsToVerify);
+      const { allLocations } = await StorageService.ensureLocationsExist(locationsToVerify);
       setLocations(allLocations);
       setBuildings(await StorageService.getBuildings());
 
@@ -320,10 +369,12 @@ export default function App() {
 
   const handleToggleMonth = async (equipmentId: string, monthIndex: number) => {
     if (user?.role !== 'admin') return;
-    const currentSchedule = planMatrix[equipmentId] ? [...planMatrix[equipmentId]] : new Array(12).fill(false);
+    const currentSchedule = planMatrix[equipmentId]
+      ? [...planMatrix[equipmentId]]
+      : new Array(12).fill(false);
     currentSchedule[monthIndex] = !currentSchedule[monthIndex];
     const updatedPlan = { ...planMatrix, [equipmentId]: currentSchedule };
-    
+
     setPlanMatrix(updatedPlan);
     try {
       await StorageService.saveAnnualPlan(selectedYear, updatedPlan);
@@ -342,7 +393,10 @@ export default function App() {
     if (user?.role !== 'admin') return;
     const newPlan: Record<string, boolean[]> = {};
     equipments.forEach((eq) => {
-      newPlan[eq.id] = eq.status === 'activo' ? getDefaultMonthsForFrequency(eq.frequency, eq.customMonths) : new Array(12).fill(false);
+      newPlan[eq.id] =
+        eq.status === 'activo'
+          ? getDefaultMonthsForFrequency(eq.frequency, eq.customMonths)
+          : new Array(12).fill(false);
     });
     setPlanMatrix(newPlan);
     try {
@@ -357,7 +411,12 @@ export default function App() {
   const [preSelectedPlanEquipmentIds, setPreSelectedPlanEquipmentIds] = useState<string[]>([]);
   const [openBulkModalOnPlan, setOpenBulkModalOnPlan] = useState<boolean>(false);
 
-  const handleBulkUpdatePlan = async (updatedPlan: Record<string, boolean[]>, updatedEquipments?: Equipment[], message?: string, updatedExecutions?: MaintenanceExecution[]) => {
+  const handleBulkUpdatePlan = async (
+    updatedPlan: Record<string, boolean[]>,
+    updatedEquipments?: Equipment[],
+    message?: string,
+    updatedExecutions?: MaintenanceExecution[]
+  ) => {
     if (user?.role !== 'admin') return;
     try {
       setPlanMatrix(updatedPlan);
@@ -406,7 +465,10 @@ export default function App() {
     try {
       await StorageService.upsertExecution(execution);
       setExecutions(await StorageService.getExecutions());
-      showToast(execution.isExecuted ? 'Mantenimiento marcado como EJECUTADO.' : 'Mantenimiento programado.', 'success');
+      showToast(
+        execution.isExecuted ? 'Mantenimiento marcado como EJECUTADO.' : 'Mantenimiento programado.',
+        'success'
+      );
     } catch (e: any) {
       showToast(`Error al guardar el mantenimiento: ${e.message}`, 'error');
     }
@@ -451,7 +513,7 @@ export default function App() {
     }
   };
 
-  const handleRestoreDatabaseSuccess = async (summary: any) => {
+  const handleRestoreDatabaseSuccess = async (_summary: any) => {
     if (user?.role !== 'admin') return;
     await loadData(selectedYear);
     showToast('Copia de seguridad restaurada.', 'success');
@@ -508,7 +570,9 @@ export default function App() {
 
   const handleImportLocations = async (importedLocations: CampusLocation[]) => {
     if (user?.role !== 'admin') return;
-    for (const loc of importedLocations) { await StorageService.upsertLocation(loc); }
+    for (const loc of importedLocations) {
+      await StorageService.upsertLocation(loc);
+    }
     setLocations(await StorageService.getLocations());
     showToast('Ubicaciones importadas.', 'success');
   };
@@ -553,14 +617,16 @@ export default function App() {
   const complianceRate = useMemo(() => {
     let totalPlanned = 0;
     let totalExecuted = 0;
-    
-    equipments.forEach(eq => {
+
+    equipments.forEach((eq) => {
       const plan = planMatrix[eq.id];
       if (plan) {
         plan.forEach((isPlanned, monthIndex) => {
           if (isPlanned) {
             totalPlanned++;
-            const exec = executions.find(x => x.equipmentId === eq.id && x.year === selectedYear && x.month === monthIndex + 1);
+            const exec = executions.find(
+              (x) => x.equipmentId === eq.id && x.year === selectedYear && x.month === monthIndex + 1
+            );
             if (exec && exec.isExecuted) {
               totalExecuted++;
             }
@@ -568,7 +634,7 @@ export default function App() {
         });
       }
     });
-    
+
     return totalPlanned === 0 ? 0 : Math.round((totalExecuted / totalPlanned) * 100);
   }, [equipments, planMatrix, executions, selectedYear]);
 
@@ -577,7 +643,10 @@ export default function App() {
     setIsScannerOpen(true);
   };
 
-  const handleEquipmentSelectedFromScanner = (equipment: Equipment, action: 'view' | 'corrective' | 'preventive') => {
+  const handleEquipmentSelectedFromScanner = (
+    equipment: Equipment,
+    action: 'view' | 'corrective' | 'preventive'
+  ) => {
     setIsScannerOpen(false);
     if (action === 'view') {
       setEquipmentToView(equipment);
@@ -597,7 +666,7 @@ export default function App() {
       id: crypto.randomUUID(),
       code: prefilledData.code || '',
       name: prefilledData.name || '',
-      location: prefilledData.location || (locations[0]?.name || 'Data Center Principal'),
+      location: prefilledData.location || locations[0]?.name || 'Data Center Principal',
       brand: prefilledData.brand || '',
       model: prefilledData.model || '',
       serial: prefilledData.serial || '',
@@ -642,7 +711,11 @@ export default function App() {
   };
 
   if (isAuthLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-400">Cargando sistema...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-400">
+        Cargando sistema...
+      </div>
+    );
   }
 
   if (!token || !user) {
@@ -654,11 +727,11 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 antialiased overflow-hidden">
       {/* Sidebar Layout */}
-      <Sidebar 
-        activeTab={activeTab} 
-        onTabChange={setActiveTab} 
-        user={user} 
-        onLogout={handleLogout} 
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        user={user}
+        onLogout={handleLogout}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
@@ -667,7 +740,10 @@ export default function App() {
         {/* Header Superior */}
         <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 sm:px-6 shrink-0 print:hidden z-10">
           <div className="flex items-center gap-3">
-            <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg lg:hidden">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg lg:hidden"
+            >
               <Menu className="w-5 h-5" />
             </button>
             <h2 className="text-base sm:text-lg font-bold text-slate-800 truncate">
@@ -680,20 +756,36 @@ export default function App() {
               {activeTab === 'usuarios' && 'Gestión de Usuarios'}
             </h2>
           </div>
-          
+
           {isAdmin && (
             <div className="flex items-center gap-2 sm:gap-3">
-              <button onClick={() => setIsBackupRestoreOpen(true)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors" title="Backup y Restauración">
+              <button
+                onClick={() => setIsBackupRestoreOpen(true)}
+                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors"
+                title="Backup y Restauración"
+              >
                 <Database className="w-5 h-5" />
               </button>
-              <button onClick={() => setShowHelpModal(true)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors" title="Guía">
+              <button
+                onClick={() => setShowHelpModal(true)}
+                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors"
+                title="Guía"
+              >
                 <HelpCircle className="w-5 h-5" />
               </button>
               <div className="w-px h-6 bg-slate-200 mx-1"></div>
-              <button onClick={() => setShowClearConfirm(true)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Limpiar Sistema">
+              <button
+                onClick={() => setShowClearConfirm(true)}
+                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                title="Limpiar Sistema"
+              >
                 <Trash2 className="w-5 h-5" />
               </button>
-              <button onClick={() => setShowResetConfirm(true)} className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Cargar Datos Demo">
+              <button
+                onClick={() => setShowResetConfirm(true)}
+                className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                title="Cargar Datos Demo"
+              >
                 <RotateCcw className="w-5 h-5" />
               </button>
             </div>
@@ -703,11 +795,15 @@ export default function App() {
         {/* Notificación Toast */}
         {toast && (
           <div className="fixed bottom-5 right-5 z-50 animate-in slide-in-from-bottom-5 fade-in duration-200">
-            <div className={`flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border text-xs font-medium ${
-                toast.type === 'success' ? 'bg-emerald-900 text-emerald-100 border-emerald-700' : 
-                toast.type === 'error' ? 'bg-rose-900 text-rose-100 border-rose-700' : 
-                'bg-slate-900 text-slate-100 border-slate-700'
-              }`}>
+            <div
+              className={`flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border text-xs font-medium ${
+                toast.type === 'success'
+                  ? 'bg-emerald-900 text-emerald-100 border-emerald-700'
+                  : toast.type === 'error'
+                    ? 'bg-rose-900 text-rose-100 border-rose-700'
+                    : 'bg-slate-900 text-slate-100 border-slate-700'
+              }`}
+            >
               {toast.type === 'success' && <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />}
               {toast.type === 'error' && <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />}
               {toast.type === 'info' && <Info className="w-4 h-4 text-sky-400 shrink-0" />}
@@ -726,7 +822,8 @@ export default function App() {
               <h3 className="text-base font-bold text-slate-900">No se pudieron cargar los datos</h3>
               <p className="text-xs text-slate-600 mt-2">{loadError}</p>
               <p className="text-[11px] text-slate-500 mt-3">
-                Para evitar sobrescribir información, las acciones están bloqueadas hasta recuperar la conexión.
+                Para evitar sobrescribir información, las acciones están bloqueadas hasta recuperar la
+                conexión.
               </p>
               <div className="flex gap-2 mt-5">
                 <button
@@ -764,8 +861,14 @@ export default function App() {
               <EquipmentList
                 equipments={equipments}
                 allLocations={locations}
-                onAddEquipment={() => { setEquipmentToEdit(null); setIsEquipmentFormOpen(true); }}
-                onEditEquipment={(eq) => { setEquipmentToEdit(eq); setIsEquipmentFormOpen(true); }}
+                onAddEquipment={() => {
+                  setEquipmentToEdit(null);
+                  setIsEquipmentFormOpen(true);
+                }}
+                onEditEquipment={(eq) => {
+                  setEquipmentToEdit(eq);
+                  setIsEquipmentFormOpen(true);
+                }}
                 onViewEquipment={setEquipmentToView}
                 onToggleStatus={handleToggleEquipmentStatus}
                 onOpenImportModal={() => setIsExcelImportOpen(true)}
@@ -841,13 +944,9 @@ export default function App() {
               />
             )}
 
-            {activeTab === 'usuarios' && isAdmin && (
-              <UserManagement />
-            )}
+            {activeTab === 'usuarios' && isAdmin && <UserManagement />}
 
-            {activeTab === 'database' && isAdmin && (
-              <DatabaseSettings />
-            )}
+            {activeTab === 'database' && isAdmin && <DatabaseSettings />}
           </div>
         </main>
       </div>
@@ -856,7 +955,10 @@ export default function App() {
       {isAdmin && isEquipmentFormOpen && (
         <EquipmentFormModal
           isOpen={isEquipmentFormOpen}
-          onClose={() => { setIsEquipmentFormOpen(false); setEquipmentToEdit(null); }}
+          onClose={() => {
+            setIsEquipmentFormOpen(false);
+            setEquipmentToEdit(null);
+          }}
           onSave={handleSaveEquipment}
           initialEquipment={equipmentToEdit}
           locations={locations}
@@ -873,18 +975,37 @@ export default function App() {
           isOpen={Boolean(equipmentToView)}
           equipment={equipmentToView}
           onClose={() => setEquipmentToView(null)}
-          onEdit={isAdmin ? ((eq) => { setEquipmentToView(null); setEquipmentToEdit(eq); setIsEquipmentFormOpen(true); }) : undefined}
-          onToggleStatus={isAdmin ? ((eq) => { handleToggleEquipmentStatus(eq); setEquipmentToView(null); }) : undefined}
+          onEdit={
+            isAdmin
+              ? (eq) => {
+                  setEquipmentToView(null);
+                  setEquipmentToEdit(eq);
+                  setIsEquipmentFormOpen(true);
+                }
+              : undefined
+          }
+          onToggleStatus={
+            isAdmin
+              ? (eq) => {
+                  handleToggleEquipmentStatus(eq);
+                  setEquipmentToView(null);
+                }
+              : undefined
+          }
           onViewOfficialReport={(eq) => {
             setReportsInitialFormat('F02');
             setReportsInitialEquipmentId(eq.id);
             setActiveTab('reportes');
           }}
-          onPrintQr={isAdmin ? ((eqId) => {
-            setEquipmentToView(null);
-            setBulkQrPrintInitialIds([eqId]);
-            setIsBulkQrPrintOpen(true);
-          }) : undefined}
+          onPrintQr={
+            isAdmin
+              ? (eqId) => {
+                  setEquipmentToView(null);
+                  setBulkQrPrintInitialIds([eqId]);
+                  setIsBulkQrPrintOpen(true);
+                }
+              : undefined
+          }
         />
       )}
 
@@ -944,21 +1065,23 @@ export default function App() {
         }}
         onSave={handleSaveCorrectiveMaintenance}
         equipment={selectedEquipmentForCorrective}
-        allEquipments={equipments}
-        existingExecution={selectedExecutionForCorrective}
+        initialExecution={selectedExecutionForCorrective}
       />
 
       {isAdmin && (
         <ClearDataModal
           isOpen={showClearConfirm}
           onClose={() => setShowClearConfirm(false)}
-          onConfirmClear={(options) => { handleClearAllDemoData(options); setShowClearConfirm(false); }}
+          onConfirmClear={(options) => {
+            handleClearAllDemoData(options);
+            setShowClearConfirm(false);
+          }}
           equipmentsCount={equipments.length}
           locationsCount={locations.length}
           executionsCount={executions.length}
         />
       )}
-      
+
       {isAdmin && showResetConfirm && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white text-slate-800 rounded-xl p-6 max-w-md w-full shadow-2xl border border-slate-200">
@@ -966,27 +1089,47 @@ export default function App() {
               <RotateCcw className="w-5 h-5 text-amber-600" />
               Restaurar Datos de Demostración FCBV
             </h3>
-            <p className="text-xs text-slate-600 mt-2">Esta acción restablecerá los equipos de muestra de FCBV.</p>
+            <p className="text-xs text-slate-600 mt-2">
+              Esta acción restablecerá los equipos de muestra de FCBV.
+            </p>
             <div className="flex justify-end gap-2.5 mt-5">
-              <button onClick={() => setShowResetConfirm(false)} className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
-              <button onClick={() => { handleResetAllData(); setShowResetConfirm(false); }} className="px-4 py-1.5 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg">Sí, Restaurar</button>
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  handleResetAllData();
+                  setShowResetConfirm(false);
+                }}
+                className="px-4 py-1.5 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg"
+              >
+                Sí, Restaurar
+              </button>
             </div>
           </div>
         </div>
       )}
-      
+
       {isAdmin && showHelpModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 flex items-center justify-center p-4">
           <div className="bg-white text-slate-800 rounded-xl p-6 max-w-xl w-full shadow-2xl">
-             <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold flex items-center gap-2"><Shield className="text-indigo-600 w-5 h-5"/> Guía del Sistema</h3>
-                <button onClick={() => setShowHelpModal(false)}><X className="w-5 h-5 text-slate-400"/></button>
-             </div>
-             <p className="text-sm text-slate-600">El sistema permite gestionar el SGC completo a través de los módulos laterales.</p>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold flex items-center gap-2">
+                <Shield className="text-indigo-600 w-5 h-5" /> Guía del Sistema
+              </h3>
+              <button onClick={() => setShowHelpModal(false)}>
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+            <p className="text-sm text-slate-600">
+              El sistema permite gestionar el SGC completo a través de los módulos laterales.
+            </p>
           </div>
         </div>
       )}
     </div>
   );
 }
-
