@@ -9,6 +9,12 @@ infraestructura y tecnología de la **Fundación Colegio Bilingüe (FCBV)**.
 - **Base de datos:** SQLite (por defecto), con soporte de migración a MySQL
 - **Autenticación:** JWT con roles `admin` y `revisor`
 
+> 📘 **¿Es usted parte del personal de FCBV?** Consulte el
+> [Manual de Operación](docs/MANUAL_OPERACION.md): explica en español, paso a paso y sin tecnicismos,
+> el acceso y los roles, cada módulo, el ciclo de vida SGC de las actas, los reportes oficiales, el
+> uso sin conexión, las copias de seguridad y la solución de problemas. Este `README` es la guía
+> técnica para instalar y mantener el sistema.
+
 ---
 
 ## Requisitos
@@ -273,6 +279,7 @@ pm2 status
 ## Estructura del proyecto
 
 ```
+docs/MANUAL_OPERACION.md   Manual de operación para el personal de FCBV
 server.ts                  Punto de entrada del backend (rutas REST y arranque)
 server/env.ts              Validación de variables de entorno
 server/sync.ts             Lógica de sincronización no destructiva y bloqueo optimista
