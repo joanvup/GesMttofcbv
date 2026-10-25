@@ -48,6 +48,11 @@ const JWT_SECRET: string = env.jwtSecret;
 
 app.disable('x-powered-by');
 
+// Despliegue detrás de nginx en el mismo host: se confía en un único proxy local
+// para que req.ip sea la IP real del cliente. Sin esto, el límite de intentos de
+// login (que agrupa por IP) se compartiría entre todo el colegio.
+app.set('trust proxy', 1);
+
 // Cabeceras de seguridad básicas (sin CSP para no romper el HMR de Vite en desarrollo)
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');

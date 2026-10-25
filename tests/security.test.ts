@@ -99,4 +99,32 @@ describe('Endurecimiento de la API', () => {
 
     expect(lastStatus).toBe(429);
   });
+
+  it('confía en el proxy local para limitar el login por IP real del cliente', async () => {
+    // Sin `trust proxy`, req.ip sería siempre la del proxy (127.0.0.1) y el límite
+    // de intentos se compartiría entre todos los usuarios del colegio.
+    expect(app.get('trust proxy')).toBeTruthy();
+
+    resetRateLimiters();
+    // Un atacante tras el proxy: su IP real llega en X-Forwarded-For.
+    for (let attempt = 1; attempt <= 10; attempt++) {
+      const response = await request(app)
+        .post('/api/auth/login')
+        .set('X-Forwarded-For', '203.0.113.7')
+        .send({ username: 'admin', password: 'clave-incorrecta' });
+      expect(response.status).toBe(401);
+    }
+    const blocked = await request(app)
+      .post('/api/auth/login')
+      .set('X-Forwarded-For', '203.0.113.7')
+      .send({ username: 'admin', password: 'clave-incorrecta' });
+    expect(blocked.status).toBe(429);
+
+    // Otra IP real distinta no hereda el bloqueo.
+    const other = await request(app)
+      .post('/api/auth/login')
+      .set('X-Forwarded-For', '203.0.113.8')
+      .send({ username: 'admin', password: ADMIN_PASSWORD });
+    expect(other.status).toBe(200);
+  });
 });
