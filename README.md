@@ -14,6 +14,10 @@ infraestructura y tecnología de la **Fundación Colegio Bilingüe (FCBV)**.
 > el acceso y los roles, cada módulo, el ciclo de vida SGC de las actas, los reportes oficiales, el
 > uso sin conexión, las copias de seguridad y la solución de problemas. Este `README` es la guía
 > técnica para instalar y mantener el sistema.
+>
+> 🚀 **¿Va a desplegar en el servidor de producción?** Use el
+> [Runbook de actualización](docs/RUNBOOK_DESPLIEGUE.md): procedimiento paso a paso con respaldos,
+> verificaciones y plan de rollback para Ubuntu + PM2 + nginx.
 
 ---
 
@@ -223,7 +227,8 @@ acción, usuario, entidad y rango de fechas): `GET /api/audit` y `GET /api/audit
 ## Seguridad
 
 - Contraseñas con `bcrypt` (12 rondas) y tokens JWT de 24 h.
-- Límite de 10 intentos de login por IP cada 15 minutos.
+- Límite de 10 intentos de login por IP cada 15 minutos. Con `trust proxy` activo, la IP registrada
+  es la real del cliente aunque la app esté detrás de nginx (no la del proxy).
 - Cabeceras `X-Content-Type-Options`, `X-Frame-Options` y `Referrer-Policy`.
 - Subida de logo restringida a PNG/JPG/WEBP de hasta 5 MB, validando el contenido real.
 - El endpoint de IA exige sesión y está limitado a 20 solicitudes por minuto.
@@ -251,6 +256,10 @@ La aplicación es instalable y funciona de forma degradada sin conexión:
 > `http://localhost` durante las pruebas).
 
 ## Despliegue en Ubuntu con PM2
+
+> Para **actualizar** un servidor ya en producción, siga el
+> [Runbook de actualización](docs/RUNBOOK_DESPLIEGUE.md): incluye respaldos, el manejo del historial
+> de Git reescrito, el control de calidad antes del corte y el plan de rollback.
 
 El repositorio incluye `ecosystem.config.cjs` ya configurado (modo `fork`, `instances: 1`,
 logs en `logs/`):
