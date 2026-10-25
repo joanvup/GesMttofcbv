@@ -22,16 +22,9 @@ import {
 import { Equipment, MaintenanceExecution, RecordStatus } from '../../types';
 import { MONTH_NAMES, MONTH_SHORT_NAMES, StorageService } from '../../services/storage';
 import { ExportService } from '../../services/exportService';
+import { RECORD_STATUS_LABELS, type ExecutionActionName } from '../../services/sgc';
 import { ExecutionModal } from './ExecutionModal';
 import { BulkExecutionModal } from './BulkExecutionModal';
-
-type ExecutionActionName = 'approve' | 'close' | 'reopen';
-
-const RECORD_STATUS_LABELS: Record<RecordStatus, string> = {
-  borrador: 'Borrador',
-  aprobado: 'Aprobado',
-  cerrado: 'Cerrado',
-};
 
 const RECORD_STATUS_STYLES: Record<RecordStatus, string> = {
   borrador: 'bg-amber-50 text-amber-800 border-amber-300',

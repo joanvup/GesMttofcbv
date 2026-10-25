@@ -1,6 +1,14 @@
 import React from 'react';
 import { Equipment, MaintenanceExecution } from '../../types';
 import { ReportHeader } from './ReportHeader';
+import {
+  RECORD_STATUS_LABELS,
+  formatSgcDate,
+  getRecordStatus,
+  getRecordVersion,
+  getSgcApproval,
+  summarizeSgc,
+} from '../../services/sgc';
 
 interface F05ExecutedMaintenanceReportProps {
   equipments: Equipment[];
@@ -24,6 +32,41 @@ const DefaultSignatureSvg: React.FC<{ name?: string }> = () => (
       strokeLinejoin="round"
     />
   </svg>
+);
+
+// Insignia del estado SGC en blanco y negro (apta para impresión monocromática).
+const SgcStatusStamp: React.FC<{ status: 'borrador' | 'aprobado' | 'cerrado'; version: number }> = ({
+  status,
+  version,
+}) => {
+  const styles: Record<typeof status, string> = {
+    borrador: 'border border-black bg-white',
+    aprobado: 'border-2 border-black bg-slate-200',
+    cerrado: 'border-2 border-black bg-black text-white',
+  };
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${styles[status]}`}
+    >
+      {RECORD_STATUS_LABELS[status]}
+      <span className="font-mono font-semibold">v{version}</span>
+    </span>
+  );
+};
+
+// Sello de revisión SGC: refleja quién aprobó/cerró el acta y cuándo.
+const ReviewStamp: React.FC<{ actor?: string; at?: string; action: 'aprobado' | 'cerrado' }> = ({
+  actor,
+  at,
+  action,
+}) => (
+  <div className="leading-tight">
+    <div className="text-[10px] font-bold uppercase tracking-wide">
+      {action === 'cerrado' ? 'Cerrado' : 'Aprobado'}
+    </div>
+    {actor && <div className="text-[10px] font-semibold">{actor}</div>}
+    {at && <div className="text-[9px] font-mono text-slate-600">{formatSgcDate(at)}</div>}
+  </div>
 );
 
 export const F05ExecutedMaintenanceReport: React.FC<F05ExecutedMaintenanceReportProps> = ({
@@ -52,6 +95,7 @@ export const F05ExecutedMaintenanceReport: React.FC<F05ExecutedMaintenanceReport
       {equipments.map((eq) => {
         // Encontrar las ejecuciones de este equipo específico
         const eqExecutions = executions.filter((ex) => ex.equipmentId === eq.id && ex.isExecuted);
+        const sgcSummary = summarizeSgc(eqExecutions);
 
         // Generar las filas restantes en blanco hasta completar la hoja estándar
         const remainingBlankRowsCount = Math.max(1, TOTAL_ROWS_PER_SHEET - eqExecutions.length);
@@ -94,12 +138,13 @@ export const F05ExecutedMaintenanceReport: React.FC<F05ExecutedMaintenanceReport
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-200/80 font-bold border-b border-black text-[11px] text-center">
-                      <th className="py-1.5 px-2 border-r border-black w-28 uppercase">Fecha</th>
+                      <th className="py-1.5 px-2 border-r border-black w-24 uppercase">Fecha</th>
                       <th className="py-1.5 px-3 border-r border-black uppercase text-left">
                         Descripción del Mantenimiento
                       </th>
-                      <th className="py-1.5 px-2 border-r border-black w-36 uppercase">Firma Elaboró</th>
-                      <th className="py-1.5 px-2 w-36 uppercase">Firma Revisó</th>
+                      <th className="py-1.5 px-2 border-r border-black w-28 uppercase">Estado SGC</th>
+                      <th className="py-1.5 px-2 border-r border-black w-32 uppercase">Firma Elaboró</th>
+                      <th className="py-1.5 px-2 w-32 uppercase">Revisión SGC</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-black bg-white text-black">
@@ -111,6 +156,7 @@ export const F05ExecutedMaintenanceReport: React.FC<F05ExecutedMaintenanceReport
                           : eq.maintenanceTasks.join(', ') || 'Mantenimiento Preventivo General';
 
                       const sigToUse = ex.signatureDataUrl || technicianSignature;
+                      const approval = getSgcApproval(ex);
 
                       return (
                         <tr key={ex.id} className="min-h-[36px]">
@@ -119,6 +165,9 @@ export const F05ExecutedMaintenanceReport: React.FC<F05ExecutedMaintenanceReport
                           </td>
                           <td className="py-1 px-3 border-r border-black text-[11px] leading-snug align-middle">
                             {descriptionText}
+                          </td>
+                          <td className="py-1 px-2 border-r border-black text-center align-middle">
+                            <SgcStatusStamp status={getRecordStatus(ex)} version={getRecordVersion(ex)} />
                           </td>
                           <td className="py-0.5 px-2 border-r border-black text-center align-middle">
                             {sigToUse ? (
@@ -131,15 +180,13 @@ export const F05ExecutedMaintenanceReport: React.FC<F05ExecutedMaintenanceReport
                               <DefaultSignatureSvg />
                             )}
                           </td>
-                          <td className="py-0.5 px-2 text-center align-middle">
-                            {sigToUse ? (
-                              <img
-                                src={sigToUse}
-                                alt="Firma Revisó"
-                                className="h-8 max-w-[120px] mx-auto object-contain"
-                              />
+                          <td className="py-1 px-2 text-center align-middle">
+                            {approval ? (
+                              <ReviewStamp actor={approval.actor} at={approval.at} action={approval.action} />
                             ) : (
-                              <DefaultSignatureSvg />
+                              <span className="text-[10px] italic text-slate-500">
+                                Pendiente de aprobación
+                              </span>
                             )}
                           </td>
                         </tr>
@@ -152,12 +199,24 @@ export const F05ExecutedMaintenanceReport: React.FC<F05ExecutedMaintenanceReport
                         <td className="py-1 px-2 border-r border-black">&nbsp;</td>
                         <td className="py-1 px-3 border-r border-black">&nbsp;</td>
                         <td className="py-1 px-2 border-r border-black">&nbsp;</td>
+                        <td className="py-1 px-2 border-r border-black">&nbsp;</td>
                         <td className="py-1 px-2">&nbsp;</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+
+              {/* Resumen SGC del equipo en esta hoja */}
+              {sgcSummary.total > 0 && (
+                <div className="mt-2 flex items-center justify-end gap-3 text-[10px] font-semibold uppercase tracking-wide">
+                  <span>Acta SGC del equipo:</span>
+                  <span>
+                    {sgcSummary.cerrado} cerrada(s) · {sgcSummary.aprobado} aprobada(s) ·{' '}
+                    {sgcSummary.borrador} en borrador
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Pie de página normativo */}

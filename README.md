@@ -99,6 +99,8 @@ los datos reales.
 - `tests/concurrency.test.ts`: bloqueo optimista (409), sincronización no destructiva y copias.
 - `tests/audit.test.ts`: migraciones versionadas y bitácora de auditoría.
 - `tests/executions.test.ts`: ciclo de vida SGC de las actas (aprobar, cerrar, reabrir y bloqueo).
+- `tests/sgc.test.ts`: etiquetas, resumen y columnas de trazabilidad SGC de las actas.
+- `tests/reports.test.ts`: render del reporte F05 con el estado SGC reflejado.
 - `tests/offline.test.ts`: espejo local, cola de escritura offline y sincronización al reconectar.
 - `tests/dates.test.ts`: fechas locales (sin desfase UTC) y días hábiles.
 - `tests/env.test.ts`: validación de variables de entorno.
@@ -163,6 +165,9 @@ Cada acta de mantenimiento (preventiva o correctiva) tiene un **estado de regist
   `closed_by/at`).
 - El revisor SGC accede a la pestaña _3. Revisión de Actas (SGC)_ en **modo lectura**: puede ver,
   aprobar y cerrar, pero no crear ni editar contenido.
+- El **reporte impreso F05** y su **exportación a Excel** incluyen las columnas de trazabilidad SGC:
+  estado, versión, quién aprobó/cerró y cuándo, y el sello de revisión; además de un resumen de
+  actas por estado al pie de cada hoja. Así el documento físico refleja el ciclo de vida del acta.
 
 ## Auditoría (trazabilidad SGC)
 
@@ -249,6 +254,7 @@ public/                    Service worker, manifest e icono de la PWA
 src/db/                    Conexión Drizzle, esquema y migraciones versionadas
 src/services/              Acceso a datos, exportación, Excel, QR, OCR
 src/services/offline.ts    Espejo local (IndexedDB) y cola de escritura offline
+src/services/sgc.ts        Utilidades del ciclo de vida SGC (etiquetas y trazabilidad)
 src/components/            Vistas y módulos de la interfaz
 ecosystem.config.cjs       Configuración de despliegue con PM2
 tests/                     Pruebas de API y de lógica pura

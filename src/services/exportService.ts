@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Equipment, MaintenanceExecution, CampusLocation } from '../types';
 import { MONTH_SHORT_NAMES, MONTH_NAMES, StorageService } from './storage';
+import { buildSgcExportColumns } from './sgc';
 import { readExcelFile, writeExcelFile } from './excelService';
 
 export const ExportService = {
@@ -628,8 +629,9 @@ export const ExportService = {
         'Nombre del Equipo': eq ? `${eq.name} - ${eq.location}` : 'N/A',
         Fecha: ex.executedDate ? ex.executedDate.slice(0, 10) : ex.scheduledDate,
         'Descripción del Mantenimiento': (ex.completedTasks || eq?.maintenanceTasks || []).join(', '),
+        // Trazabilidad SGC del acta (estado, versión y responsables de la revisión).
+        ...buildSgcExportColumns(ex),
         'Firma Elaboró': ex.responsibleName || 'Joan Fuentes (Técnico TI)',
-        'Firma Revisó': 'Coordinación de Calidad y TI',
         Observaciones: ex.observations || '',
       };
     });
@@ -646,12 +648,17 @@ export const ExportService = {
                 'Nombre del Equipo': 'Sin registros aún',
                 Fecha: '-',
                 'Descripción del Mantenimiento': '-',
+                'Estado SGC': '-',
+                Versión: '-',
+                'Aprobado por': '-',
+                'Aprobado el': '-',
+                'Cerrado por': '-',
+                'Cerrado el': '-',
                 'Firma Elaboró': '-',
-                'Firma Revisó': '-',
                 Observaciones: '',
               },
             ],
-      widths: [14, 42, 14, 50, 28, 28, 32],
+      widths: [14, 42, 14, 50, 14, 10, 18, 14, 18, 14, 28, 32],
     });
   },
 };
