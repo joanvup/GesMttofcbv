@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Equipment, EquipmentFrequency, MaintenanceExecution, CampusLocation } from './types';
 import { StorageService, getDefaultMonthsForFrequency } from './services/storage';
 import { ActiveTab } from './components/Navbar';
+import { TAB_PATHS, defaultTabForRole, pathToTab } from './routes';
 import { Sidebar } from './components/Sidebar';
 import { Login } from './components/Auth/Login';
 import { EquipmentList } from './components/EquipmentModule/EquipmentList';
@@ -44,8 +46,12 @@ export default function App() {
   const [technicianSignature, setTechnicianSignature] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Navegación
-  const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  // Navegación por rutas (React Router): la pestaña activa se deriva de la URL,
+  // de modo que cada módulo es enlazable y navegable con el historial.
+  const navigate = useNavigate();
+  const location = useLocation();
+  const activeTab = pathToTab(location.pathname) ?? defaultTabForRole(user?.role);
+  const setActiveTab = useCallback((tab: ActiveTab) => navigate(TAB_PATHS[tab]), [navigate]);
 
   useEffect(() => {
     // Validar token al cargar
@@ -57,9 +63,6 @@ export default function App() {
         .then((data) => {
           if (data.success) {
             setUser(data.user);
-            if (data.user.role === 'revisor') {
-              setActiveTab('reportes');
-            }
           } else {
             handleLogout();
           }
@@ -76,12 +79,7 @@ export default function App() {
     localStorage.setItem('fcbv_user', JSON.stringify(newUser));
     setToken(newToken);
     setUser(newUser);
-
-    if (newUser.role === 'revisor') {
-      setActiveTab('reportes');
-    } else {
-      setActiveTab('equipos');
-    }
+    navigate(TAB_PATHS[newUser.role === 'revisor' ? 'reportes' : 'equipos']);
   };
 
   const handleLogout = () => {
@@ -742,7 +740,6 @@ export default function App() {
   }
 
   const isAdmin = user.role === 'admin';
-  const isRevisor = user.role === 'revisor';
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 antialiased overflow-hidden">
@@ -867,109 +864,154 @@ export default function App() {
         {/* Contenido Principal con Scroll Independiente */}
         <main className="flex-1 overflow-y-auto w-full">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-            {activeTab === 'dashboard' && isAdmin && (
-              <DashboardView
-                equipments={equipments}
-                planMatrix={planMatrix}
-                executions={executions}
-                selectedYear={selectedYear}
-                complianceRate={complianceRate}
-                onNavigate={setActiveTab}
+            <Routes>
+              <Route
+                path={TAB_PATHS.dashboard}
+                element={
+                  isAdmin ? (
+                    <DashboardView
+                      equipments={equipments}
+                      planMatrix={planMatrix}
+                      executions={executions}
+                      selectedYear={selectedYear}
+                      complianceRate={complianceRate}
+                      onNavigate={setActiveTab}
+                    />
+                  ) : (
+                    <Navigate to={TAB_PATHS.reportes} replace />
+                  )
+                }
               />
-            )}
 
-            {activeTab === 'equipos' && isAdmin && (
-              <EquipmentList
-                equipments={equipments}
-                allLocations={locations}
-                onAddEquipment={() => {
-                  setEquipmentToEdit(null);
-                  setIsEquipmentFormOpen(true);
-                }}
-                onEditEquipment={(eq) => {
-                  setEquipmentToEdit(eq);
-                  setIsEquipmentFormOpen(true);
-                }}
-                onViewEquipment={setEquipmentToView}
-                onToggleStatus={handleToggleEquipmentStatus}
-                onOpenImportModal={() => setIsExcelImportOpen(true)}
-                onNavigateToLocations={() => setActiveTab('ubicaciones')}
-                onBulkSchedule={handleNavigateToPlanForBulkSchedule}
-                onBulkChangeFrequency={handleBulkChangeFrequency}
-                onOpenScanner={handleOpenScanner}
-                onOpenBulkQrPrint={(ids) => {
-                  setBulkQrPrintInitialIds(ids || []);
-                  setIsBulkQrPrintOpen(true);
-                }}
+              <Route
+                path={TAB_PATHS.equipos}
+                element={
+                  isAdmin ? (
+                    <EquipmentList
+                      equipments={equipments}
+                      allLocations={locations}
+                      onAddEquipment={() => {
+                        setEquipmentToEdit(null);
+                        setIsEquipmentFormOpen(true);
+                      }}
+                      onEditEquipment={(eq) => {
+                        setEquipmentToEdit(eq);
+                        setIsEquipmentFormOpen(true);
+                      }}
+                      onViewEquipment={setEquipmentToView}
+                      onToggleStatus={handleToggleEquipmentStatus}
+                      onOpenImportModal={() => setIsExcelImportOpen(true)}
+                      onNavigateToLocations={() => setActiveTab('ubicaciones')}
+                      onBulkSchedule={handleNavigateToPlanForBulkSchedule}
+                      onBulkChangeFrequency={handleBulkChangeFrequency}
+                      onOpenScanner={handleOpenScanner}
+                      onOpenBulkQrPrint={(ids) => {
+                        setBulkQrPrintInitialIds(ids || []);
+                        setIsBulkQrPrintOpen(true);
+                      }}
+                    />
+                  ) : (
+                    <Navigate to={TAB_PATHS.reportes} replace />
+                  )
+                }
               />
-            )}
 
-            {activeTab === 'plan' && isAdmin && (
-              <AnnualPlanView
-                equipments={equipments}
-                selectedYear={selectedYear}
-                onYearChange={setSelectedYear}
-                planMatrix={planMatrix}
-                executions={executions}
-                onToggleMonth={handleToggleMonth}
-                onResetPlanToDefaults={handleResetPlanToDefaults}
-                onBulkUpdatePlan={handleBulkUpdatePlan}
-                initialSelectedEquipmentIds={preSelectedPlanEquipmentIds}
-                initialOpenBulkModal={openBulkModalOnPlan}
-                onClearInitialBulkOpen={() => setOpenBulkModalOnPlan(false)}
-                onBulkSaveExecutions={handleBulkSaveExecutions}
+              <Route
+                path={TAB_PATHS.plan}
+                element={
+                  isAdmin ? (
+                    <AnnualPlanView
+                      equipments={equipments}
+                      selectedYear={selectedYear}
+                      onYearChange={setSelectedYear}
+                      planMatrix={planMatrix}
+                      executions={executions}
+                      onToggleMonth={handleToggleMonth}
+                      onResetPlanToDefaults={handleResetPlanToDefaults}
+                      onBulkUpdatePlan={handleBulkUpdatePlan}
+                      initialSelectedEquipmentIds={preSelectedPlanEquipmentIds}
+                      initialOpenBulkModal={openBulkModalOnPlan}
+                      onClearInitialBulkOpen={() => setOpenBulkModalOnPlan(false)}
+                      onBulkSaveExecutions={handleBulkSaveExecutions}
+                    />
+                  ) : (
+                    <Navigate to={TAB_PATHS.reportes} replace />
+                  )
+                }
               />
-            )}
 
-            {activeTab === 'ejecucion' && (isAdmin || isRevisor) && (
-              <ExecutionView
-                equipments={equipments}
-                selectedYear={selectedYear}
-                onYearChange={setSelectedYear}
-                planMatrix={planMatrix}
-                executions={executions}
-                onSaveExecution={handleSaveExecution}
-                onBulkSaveExecutions={handleBulkSaveExecutions}
-                onOpenCorrectiveModal={handleOpenCorrectiveModal}
-                currentUserRole={user.role}
-                onTransitionExecution={handleTransitionExecution}
+              <Route
+                path={TAB_PATHS.ejecucion}
+                element={
+                  <ExecutionView
+                    equipments={equipments}
+                    selectedYear={selectedYear}
+                    onYearChange={setSelectedYear}
+                    planMatrix={planMatrix}
+                    executions={executions}
+                    onSaveExecution={handleSaveExecution}
+                    onBulkSaveExecutions={handleBulkSaveExecutions}
+                    onOpenCorrectiveModal={handleOpenCorrectiveModal}
+                    currentUserRole={user.role}
+                    onTransitionExecution={handleTransitionExecution}
+                  />
+                }
               />
-            )}
 
-            {activeTab === 'ubicaciones' && isAdmin && (
-              <LocationList
-                locations={locations}
-                equipments={equipments}
-                buildings={buildings}
-                onSaveLocation={handleSaveLocation}
-                onDeleteLocation={handleDeleteLocation}
-                onViewEquipment={setEquipmentToView}
-                onImportLocations={handleImportLocations}
-                onAddBuilding={handleAddBuilding}
-                onRenameBuilding={handleRenameBuilding}
-                onDeleteBuilding={handleDeleteBuilding}
-                onResetBuildings={handleResetBuildings}
+              <Route
+                path={TAB_PATHS.ubicaciones}
+                element={
+                  isAdmin ? (
+                    <LocationList
+                      locations={locations}
+                      equipments={equipments}
+                      buildings={buildings}
+                      onSaveLocation={handleSaveLocation}
+                      onDeleteLocation={handleDeleteLocation}
+                      onViewEquipment={setEquipmentToView}
+                      onImportLocations={handleImportLocations}
+                      onAddBuilding={handleAddBuilding}
+                      onRenameBuilding={handleRenameBuilding}
+                      onDeleteBuilding={handleDeleteBuilding}
+                      onResetBuildings={handleResetBuildings}
+                    />
+                  ) : (
+                    <Navigate to={TAB_PATHS.reportes} replace />
+                  )
+                }
               />
-            )}
 
-            {activeTab === 'reportes' && (
-              <ReportsView
-                key={`${reportsInitialFormat}-${reportsInitialEquipmentId}`}
-                equipments={equipments}
-                planMatrix={planMatrix}
-                executions={executions}
-                selectedYear={selectedYear}
-                onYearChange={setSelectedYear}
-                locations={locations}
-                technicianSignature={technicianSignature}
-                initialFormat={reportsInitialFormat}
-                initialEquipmentId={reportsInitialEquipmentId}
+              <Route
+                path={TAB_PATHS.reportes}
+                element={
+                  <ReportsView
+                    key={`${reportsInitialFormat}-${reportsInitialEquipmentId}`}
+                    equipments={equipments}
+                    planMatrix={planMatrix}
+                    executions={executions}
+                    selectedYear={selectedYear}
+                    onYearChange={setSelectedYear}
+                    locations={locations}
+                    technicianSignature={technicianSignature}
+                    initialFormat={reportsInitialFormat}
+                    initialEquipmentId={reportsInitialEquipmentId}
+                  />
+                }
               />
-            )}
 
-            {activeTab === 'usuarios' && isAdmin && <UserManagement />}
+              <Route
+                path={TAB_PATHS.usuarios}
+                element={isAdmin ? <UserManagement /> : <Navigate to={TAB_PATHS.reportes} replace />}
+              />
 
-            {activeTab === 'database' && isAdmin && <DatabaseSettings />}
+              <Route
+                path={TAB_PATHS.database}
+                element={isAdmin ? <DatabaseSettings /> : <Navigate to={TAB_PATHS.reportes} replace />}
+              />
+
+              {/* Ruta desconocida o raíz: redirige a la pestaña por defecto del rol. */}
+              <Route path="*" element={<Navigate to={TAB_PATHS[defaultTabForRole(user.role)]} replace />} />
+            </Routes>
           </div>
         </main>
       </div>
