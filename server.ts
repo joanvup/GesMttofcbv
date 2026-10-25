@@ -30,6 +30,7 @@ import {
   getEntityRevision,
   isSyncEntity,
   transitionExecution,
+  type SyncEntity,
 } from './server/sync';
 import {
   BackupUnavailableError,
@@ -404,77 +405,74 @@ app.put('/api/users/:id', authenticateToken, requireAdmin, (req, res) => {
   res.json({ success: true, user: userWithoutPassword });
 });
 
-// RUTAS SYNC
-// La lista blanca vive en server/sync.ts para compartirla con las pruebas y
-// mantener las rutas delgadas.
+// RUTAS DE DATOS (REST por recurso)
+// La lista blanca de entidades y la lógica de sincronización viven en
+// server/sync.ts para compartirla con las pruebas y mantener las rutas delgadas.
+// Cada recurso REST comparte el mismo manejador y conserva el bloqueo optimista
+// (`{ data, expectedRevision }` → `{ revision }` + `ETag`).
 
-app.get('/api/sync/:entity', authenticateToken, (req, res) => {
-  const { entity } = req.params;
-
-  if (!isSyncEntity(entity)) {
-    return res.status(404).json({ success: false, error: `Entidad de sincronización no válida: ${entity}` });
+// Lee una entidad sincronizada y la devuelve en el formato que espera el cliente
+// (campos JSON ya deserializados).
+function readSyncEntity(entity: SyncEntity): any {
+  if (entity === 'equipments') {
+    return db
+      .select()
+      .from(equipments)
+      .all()
+      .map((e) => ({
+        ...e,
+        parts: JSON.parse(e.parts),
+        maintenanceTasks: JSON.parse(e.maintenanceTasks),
+        customMonths: e.customMonths ? JSON.parse(e.customMonths) : undefined,
+      }));
   }
+  if (entity === 'locations') {
+    return db.select().from(locations).all();
+  }
+  if (entity === 'buildings') {
+    return db
+      .select()
+      .from(buildings)
+      .all()
+      .map((b) => b.name);
+  }
+  if (entity === 'annualPlans') {
+    const data: Record<string, Record<string, boolean[]>> = {};
+    const plans = db.select().from(annualPlans).all();
+    plans.forEach((p) => {
+      if (!data[p.year]) data[p.year] = {};
+      data[p.year][p.equipmentId] = JSON.parse(p.schedules);
+    });
+    return data;
+  }
+  return db
+    .select()
+    .from(executions)
+    .all()
+    .map((e) => ({
+      ...e,
+      completedTasks: JSON.parse(e.completedTasks),
+      partsReplaced: e.partsReplaced ? JSON.parse(e.partsReplaced) : undefined,
+      maintenanceType: (e as any).maintenanceType || 'preventivo',
+      failureDescription: (e as any).failureDescription || undefined,
+      actionTaken: (e as any).actionTaken || undefined,
+      downtimeHours: (e as any).downtimeHours !== null ? (e as any).downtimeHours : undefined,
+      finalOperationalStatus: (e as any).finalOperationalStatus || undefined,
+    }));
+}
 
-  let data: any = [];
+function handleReadEntity(res: any, entity: SyncEntity): void {
   try {
-    if (entity === 'equipments') {
-      data = db
-        .select()
-        .from(equipments)
-        .all()
-        .map((e) => ({
-          ...e,
-          parts: JSON.parse(e.parts),
-          maintenanceTasks: JSON.parse(e.maintenanceTasks),
-          customMonths: e.customMonths ? JSON.parse(e.customMonths) : undefined,
-        }));
-    } else if (entity === 'locations') {
-      data = db.select().from(locations).all();
-    } else if (entity === 'buildings') {
-      data = db
-        .select()
-        .from(buildings)
-        .all()
-        .map((b) => b.name);
-    } else if (entity === 'annualPlans') {
-      data = {};
-      const plans = db.select().from(annualPlans).all();
-      plans.forEach((p) => {
-        if (!data[p.year]) data[p.year] = {};
-        data[p.year][p.equipmentId] = JSON.parse(p.schedules);
-      });
-    } else if (entity === 'executions') {
-      data = db
-        .select()
-        .from(executions)
-        .all()
-        .map((e) => ({
-          ...e,
-          completedTasks: JSON.parse(e.completedTasks),
-          partsReplaced: e.partsReplaced ? JSON.parse(e.partsReplaced) : undefined,
-          maintenanceType: (e as any).maintenanceType || 'preventivo',
-          failureDescription: (e as any).failureDescription || undefined,
-          actionTaken: (e as any).actionTaken || undefined,
-          downtimeHours: (e as any).downtimeHours !== null ? (e as any).downtimeHours : undefined,
-          finalOperationalStatus: (e as any).finalOperationalStatus || undefined,
-        }));
-    }
-
+    const data = readSyncEntity(entity);
     const revision = getEntityRevision(entity);
     res.setHeader('ETag', `"rev-${revision}"`);
     res.json({ success: true, data, revision });
   } catch (e: any) {
     res.status(500).json({ success: false, error: e.message });
   }
-});
+}
 
-app.post('/api/sync/:entity', authenticateToken, requireAdmin, (req, res) => {
-  const { entity } = req.params;
-
-  if (!isSyncEntity(entity)) {
-    return res.status(404).json({ success: false, error: `Entidad de sincronización no válida: ${entity}` });
-  }
-
+function handleWriteEntity(req: any, res: any, entity: SyncEntity): void {
   // Formato recomendado: { data, expectedRevision }. Se sigue aceptando el
   // cuerpo plano anterior para no romper clientes ya desplegados.
   const body = req.body;
@@ -519,7 +517,7 @@ app.post('/api/sync/:entity', authenticateToken, requireAdmin, (req, res) => {
         );
       }
 
-      const revision = bumpEntityRevision(tx, entity, (req as any).user?.username);
+      const revision = bumpEntityRevision(tx, entity, req.user?.username);
 
       return { revision };
     });
@@ -553,6 +551,41 @@ app.post('/api/sync/:entity', authenticateToken, requireAdmin, (req, res) => {
 
     res.status(500).json({ success: false, error: e.message });
   }
+}
+
+// Recurso REST canónico para cada entidad sincronizada.
+export const SYNC_RESOURCE_ROUTES: ReadonlyArray<{ path: string; entity: SyncEntity }> = [
+  { path: '/api/equipments', entity: 'equipments' },
+  { path: '/api/locations', entity: 'locations' },
+  { path: '/api/buildings', entity: 'buildings' },
+  { path: '/api/annual-plans', entity: 'annualPlans' },
+  { path: '/api/executions', entity: 'executions' },
+];
+
+for (const { path: resourcePath, entity } of SYNC_RESOURCE_ROUTES) {
+  app.get(resourcePath, authenticateToken, (_req, res) => handleReadEntity(res, entity));
+  app.put(resourcePath, authenticateToken, requireAdmin, (req, res) => handleWriteEntity(req, res, entity));
+}
+
+// Alias heredado del sync monolítico: se conserva para clientes ya desplegados.
+app.get('/api/sync/:entity', authenticateToken, (req, res) => {
+  const { entity } = req.params;
+
+  if (!isSyncEntity(entity)) {
+    return res.status(404).json({ success: false, error: `Entidad de sincronización no válida: ${entity}` });
+  }
+
+  return handleReadEntity(res, entity);
+});
+
+app.post('/api/sync/:entity', authenticateToken, requireAdmin, (req, res) => {
+  const { entity } = req.params;
+
+  if (!isSyncEntity(entity)) {
+    return res.status(404).json({ success: false, error: `Entidad de sincronización no válida: ${entity}` });
+  }
+
+  return handleWriteEntity(req, res, entity);
 });
 
 // --- Ciclo de vida SGC de las actas (aprobar / cerrar / reabrir) ---

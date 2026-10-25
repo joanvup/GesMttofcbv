@@ -98,6 +98,7 @@ los datos reales.
 - `tests/sync.test.ts`: lectura/escritura de datos y permisos por rol.
 - `tests/concurrency.test.ts`: bloqueo optimista (409), sincronización no destructiva y copias.
 - `tests/audit.test.ts`: migraciones versionadas y bitácora de auditoría.
+- `tests/rest.test.ts`: endpoints REST por recurso y compatibilidad del alias `/api/sync`.
 - `tests/executions.test.ts`: ciclo de vida SGC de las actas (aprobar, cerrar, reabrir y bloqueo).
 - `tests/sgc.test.ts`: etiquetas, resumen y columnas de trazabilidad SGC de las actas.
 - `tests/reports.test.ts`: render del reporte F05 con el estado SGC reflejado.
@@ -118,17 +119,29 @@ los datos reales.
 
 ### Bloqueo optimista (concurrencia)
 
-Cada entidad sincronizada (`equipos`, `ubicaciones`, `edificios`, `planes anuales`, `ejecuciones`)
-mantiene un contador de revisión:
+Los datos se exponen con **endpoints REST por recurso** (el cliente los usa en lugar del antiguo
+_sync_ monolítico):
 
-1. `GET /api/sync/:entity` devuelve `data` y `revision` (también en el encabezado `ETag`).
-2. `POST /api/sync/:entity` recibe `{ data, expectedRevision }` (o el encabezado `If-Match`).
+| Recurso        | Lectura                 | Escritura               |
+| -------------- | ----------------------- | ----------------------- |
+| Equipos        | `GET /api/equipments`   | `PUT /api/equipments`   |
+| Ubicaciones    | `GET /api/locations`    | `PUT /api/locations`    |
+| Edificios      | `GET /api/buildings`    | `PUT /api/buildings`    |
+| Planes anuales | `GET /api/annual-plans` | `PUT /api/annual-plans` |
+| Ejecuciones    | `GET /api/executions`   | `PUT /api/executions`   |
+
+Cada entidad mantiene un contador de revisión para el bloqueo optimista:
+
+1. `GET /api/<recurso>` devuelve `data` y `revision` (también en el encabezado `ETag`).
+2. `PUT /api/<recurso>` recibe `{ data, expectedRevision }` (o el encabezado `If-Match`).
 3. Si la revisión ya no coincide, la API responde **`409`** con `code: "SYNC_CONFLICT"` en lugar
    de sobrescribir el trabajo del otro usuario. La interfaz avisa y recarga los datos.
    (Las ediciones sobre actas bloqueadas usan el mismo `409` con `code: "RECORD_LOCKED"`.)
 
-Además, las escrituras ya **no** borran y reinsertan toda la tabla: se hace _upsert_ de lo
-recibido y se eliminan únicamente los registros ausentes, dentro de una transacción.
+El alias heredado `GET/POST /api/sync/:entity` se conserva por compatibilidad con clientes ya
+desplegados y comparte el mismo manejador. Además, las escrituras ya **no** borran y reinsertan
+toda la tabla: se hace _upsert_ de lo recibido y se eliminan únicamente los registros ausentes,
+dentro de una transacción.
 
 ## Migraciones versionadas
 

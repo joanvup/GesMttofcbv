@@ -34,6 +34,18 @@ const STORAGE_KEYS = {
   BUILDINGS: 'fcbv_buildings_list_v1',
 };
 
+// Recurso REST canónico para cada entidad sincronizada. El servidor conserva el
+// alias `/api/sync/:entity` para clientes antiguos, pero este cliente usa REST.
+const ENTITY_ENDPOINTS: Record<string, string> = {
+  equipments: '/api/equipments',
+  locations: '/api/locations',
+  buildings: '/api/buildings',
+  annualPlans: '/api/annual-plans',
+  executions: '/api/executions',
+};
+
+const entityEndpoint = (entity: string): string => ENTITY_ENDPOINTS[entity] ?? `/api/sync/${entity}`;
+
 export const INITIAL_BUILDINGS: string[] = [
   'Edificio Administrativo',
   'Bloque Bachillerato',
@@ -638,8 +650,8 @@ export async function flushOutbox(): Promise<{ flushed: number; failed: number }
       try {
         if (op.kind === 'sync' && op.entity) {
           const response = await apiRequest(
-            `/api/sync/${op.entity}`,
-            'POST',
+            entityEndpoint(op.entity),
+            'PUT',
             { data: op.data, expectedRevision: op.expectedRevision },
             { entity: op.entity }
           );
@@ -682,7 +694,7 @@ async function flushPendingBeforeRead(): Promise<void> {
 async function syncGet<T>(entity: string): Promise<T> {
   if (isOnline()) await flushPendingBeforeRead();
   try {
-    const response = await apiRequest(`/api/sync/${entity}`, 'GET', undefined, { entity });
+    const response = await apiRequest(entityEndpoint(entity), 'GET', undefined, { entity });
     if (typeof response.revision === 'number') {
       syncRevisions[entity] = response.revision;
     }
@@ -722,8 +734,8 @@ async function syncPost(entity: string, data: unknown): Promise<void> {
 
   try {
     const response = await apiRequest(
-      `/api/sync/${entity}`,
-      'POST',
+      entityEndpoint(entity),
+      'PUT',
       { data, expectedRevision: syncRevisions[entity] },
       { entity }
     );
