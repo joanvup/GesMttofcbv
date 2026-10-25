@@ -15,8 +15,10 @@ import {
   ShieldCheck,
   Clock,
   FilePlus2,
+  ScrollText,
+  FileDown,
 } from 'lucide-react';
-import type { ServerBackupInfo, ServerBackupSettings } from '../types';
+import type { ServerBackupInfo, ServerBackupSettings, AuditRecord, AuditSummary } from '../types';
 import { StorageService } from '../services/storage';
 
 interface DbConfig {
@@ -74,6 +76,18 @@ export const DatabaseSettings: React.FC = () => {
     null
   );
 
+  // Bitácora de auditoría
+  const [auditRecords, setAuditRecords] = useState<AuditRecord[]>([]);
+  const [auditSummary, setAuditSummary] = useState<AuditSummary | null>(null);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditFilters, setAuditFilters] = useState({
+    action: '',
+    username: '',
+    entity: '',
+    from: '',
+    to: '',
+  });
+
   const token = localStorage.getItem('fcbv_token');
 
   const fetchConfig = async () => {
@@ -105,6 +119,7 @@ export const DatabaseSettings: React.FC = () => {
   useEffect(() => {
     fetchConfig();
     fetchBackups();
+    fetchAudit();
   }, []);
 
   const fetchBackups = async () => {
@@ -159,6 +174,33 @@ export const DatabaseSettings: React.FC = () => {
     const date = new Date(iso);
     if (Number.isNaN(date.getTime())) return iso;
     return date.toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
+  };
+
+  const formatAuditDate = (iso: string) => {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return iso;
+    return date.toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'medium' });
+  };
+
+  const fetchAudit = async () => {
+    try {
+      setAuditLoading(true);
+      const { records, summary } = await StorageService.listAudit(auditFilters);
+      setAuditRecords(records);
+      setAuditSummary(summary);
+    } catch (err) {
+      console.error('Error fetching audit log:', err);
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  const handleExportAudit = async (format: 'json' | 'csv') => {
+    try {
+      await StorageService.downloadAudit(format, auditFilters);
+    } catch (err: any) {
+      console.error('Error exporting audit log:', err);
+    }
   };
 
   const handleTestConnection = async () => {
@@ -773,6 +815,169 @@ export const DatabaseSettings: React.FC = () => {
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Bitácora de auditoría (trazabilidad SGC) */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div className="flex items-center gap-2.5">
+            <ScrollText className="w-5 h-5 text-indigo-600" />
+            <div>
+              <h3 className="font-bold text-slate-800">Bitácora de Auditoría (SGC)</h3>
+              <p className="text-xs text-slate-500">
+                Registro inmutable de {auditSummary?.total ?? 0} eventos: inicios de sesión, cambios de
+                usuarios, sincronización de datos, copias de seguridad y configuración.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleExportAudit('csv')}
+              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-colors flex items-center gap-2"
+            >
+              <FileDown className="w-4 h-4" />
+              CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => handleExportAudit('json')}
+              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-colors flex items-center gap-2"
+            >
+              <FileDown className="w-4 h-4" />
+              JSON
+            </button>
+            <button
+              type="button"
+              onClick={fetchAudit}
+              disabled={auditLoading}
+              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors flex items-center gap-2 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${auditLoading ? 'animate-spin' : ''}`} />
+              Consultar
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700">Acción</label>
+            <select
+              value={auditFilters.action}
+              onChange={(e) => setAuditFilters({ ...auditFilters, action: e.target.value })}
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">Todas</option>
+              {(auditSummary?.actions ?? []).map((action) => (
+                <option key={action} value={action}>
+                  {action}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700">Usuario</label>
+            <select
+              value={auditFilters.username}
+              onChange={(e) => setAuditFilters({ ...auditFilters, username: e.target.value })}
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">Todos</option>
+              {(auditSummary?.usernames ?? []).map((username) => (
+                <option key={username} value={username}>
+                  {username}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700">Entidad</label>
+            <input
+              type="text"
+              value={auditFilters.entity}
+              onChange={(e) => setAuditFilters({ ...auditFilters, entity: e.target.value })}
+              placeholder="p. ej. equipments"
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700">Desde</label>
+            <input
+              type="date"
+              value={auditFilters.from}
+              onChange={(e) => setAuditFilters({ ...auditFilters, from: e.target.value })}
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700">Hasta</label>
+            <input
+              type="date"
+              value={auditFilters.to}
+              onChange={(e) => setAuditFilters({ ...auditFilters, to: e.target.value })}
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+        </div>
+
+        {auditRecords.length === 0 ? (
+          <p className="text-sm text-slate-500 py-4 text-center">
+            {auditLoading ? 'Consultando bitácora...' : 'No hay eventos que coincidan con el filtro.'}
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="text-xs uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                  <th className="py-2 pr-3 font-semibold">Fecha</th>
+                  <th className="py-2 pr-3 font-semibold">Usuario</th>
+                  <th className="py-2 pr-3 font-semibold">Acción</th>
+                  <th className="py-2 pr-3 font-semibold">Entidad</th>
+                  <th className="py-2 font-semibold">Detalles</th>
+                </tr>
+              </thead>
+              <tbody>
+                {auditRecords.map((record) => (
+                  <tr key={record.id} className="border-b border-slate-50 last:border-0 align-top">
+                    <td className="py-2.5 pr-3 text-xs text-slate-600 whitespace-nowrap">
+                      {formatAuditDate(record.timestamp)}
+                    </td>
+                    <td className="py-2.5 pr-3 text-xs font-semibold text-slate-700">
+                      {record.username ?? 'anónimo'}
+                    </td>
+                    <td className="py-2.5 pr-3">
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 whitespace-nowrap">
+                        {record.action}
+                      </span>
+                    </td>
+                    <td className="py-2.5 pr-3 text-xs text-slate-600">
+                      {record.entity ?? '—'}
+                      {record.entityId ? (
+                        <span
+                          className="block font-mono text-[10px] text-slate-400 truncate max-w-[14rem]"
+                          title={record.entityId}
+                        >
+                          {record.entityId}
+                        </span>
+                      ) : null}
+                    </td>
+                    <td
+                      className="py-2.5 text-[11px] font-mono text-slate-500 max-w-[24rem] truncate"
+                      title={record.details ? JSON.stringify(record.details) : ''}
+                    >
+                      {record.details ? JSON.stringify(record.details) : '—'}
                     </td>
                   </tr>
                 ))}

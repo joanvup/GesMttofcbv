@@ -85,3 +85,17 @@ export const entityRevisions = sqliteTable('entity_revisions', {
   updatedAt: text('updated_at').notNull(),
   updatedBy: text('updated_by'),
 });
+
+// Bitácora de auditoría (trazabilidad SGC).
+// Es inmutable desde la aplicación: solo se insertan filas, nunca se editan
+// ni se eliminan por API. Registra quién hizo qué y sobre qué entidad.
+export const auditLog = sqliteTable('audit_log', {
+  id: text('id').primaryKey(),
+  timestamp: text('timestamp').notNull(),
+  userId: text('user_id'),
+  username: text('username'),
+  action: text('action').notNull(),
+  entity: text('entity'),
+  entityId: text('entity_id'),
+  details: text('details'), // JSON
+});

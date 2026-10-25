@@ -11,6 +11,7 @@ coverage/
 uploads/
 data/
 backups/
+logs/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal

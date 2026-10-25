@@ -39,6 +39,7 @@ import {
   resolveBackupPath,
   startAutomaticBackups,
 } from './server/backup';
+import { auditSummary, exportAudit, listAudit, recordAudit } from './server/audit';
 
 export const app = express();
 const JWT_SECRET: string = env.jwtSecret;
@@ -269,7 +270,7 @@ const aiRateLimiter = createRateLimiter({
 });
 
 // RUTAS DE AUTENTICACIÓN
-app.post('/api/auth/login', loginRateLimiter, (req, res) => {
+app.post('/api/auth/login', loginRateLimiter, (req: any, res) => {
   const { username, password } = req.body ?? {};
 
   if (typeof username !== 'string' || typeof password !== 'string' || !username.trim() || !password) {
@@ -279,6 +280,7 @@ app.post('/api/auth/login', loginRateLimiter, (req, res) => {
   const user = db.select().from(users).where(eq(users.username, username.trim())).get();
 
   if (!user || !bcrypt.compareSync(password, user.passwordHash)) {
+    recordAudit(req, { action: 'login_failed', entity: 'auth', details: { username: username.trim() } });
     return res.status(401).json({ success: false, error: 'Usuario o contraseña incorrectos' });
   }
 
@@ -287,6 +289,9 @@ app.post('/api/auth/login', loginRateLimiter, (req, res) => {
     JWT_SECRET,
     { expiresIn: '24h' }
   );
+
+  req.user = { id: user.id, username: user.username, role: user.role, name: user.name };
+  recordAudit(req, { action: 'login', entity: 'auth' });
 
   res.json({
     success: true,
@@ -330,6 +335,12 @@ app.post('/api/users', authenticateToken, requireAdmin, (req, res) => {
   };
 
   db.insert(users).values(newUser).run();
+  recordAudit(req, {
+    action: 'user.create',
+    entity: 'user',
+    entityId: newUser.id,
+    details: { username: newUser.username, role: newUser.role },
+  });
   const { passwordHash, ...safeUser } = newUser;
   res.json({ success: true, user: safeUser });
 });
@@ -342,6 +353,12 @@ app.delete('/api/users/:id', authenticateToken, requireAdmin, (req, res) => {
     return res.status(400).json({ error: 'No se puede eliminar el administrador principal' });
 
   db.delete(users).where(eq(users.id, id)).run();
+  recordAudit(req, {
+    action: 'user.delete',
+    entity: 'user',
+    entityId: id,
+    details: { username: user.username },
+  });
   res.json({ success: true });
 });
 
@@ -367,6 +384,12 @@ app.put('/api/users/:id', authenticateToken, requireAdmin, (req, res) => {
   if (password) updateData.passwordHash = bcrypt.hashSync(password, 10);
 
   db.update(users).set(updateData).where(eq(users.id, id)).run();
+  recordAudit(req, {
+    action: 'user.update',
+    entity: 'user',
+    entityId: id,
+    details: { username, role, passwordChanged: Boolean(password) },
+  });
   const updatedUser = db.select().from(users).where(eq(users.id, id)).get();
   const { passwordHash, ...userWithoutPassword } = updatedUser as any;
   res.json({ success: true, user: userWithoutPassword });
@@ -493,6 +516,11 @@ app.post('/api/sync/:entity', authenticateToken, requireAdmin, (req, res) => {
     });
 
     res.setHeader('ETag', `"rev-${result.revision}"`);
+    recordAudit(req, {
+      action: 'sync.write',
+      entity,
+      details: { revision: result.revision },
+    });
     res.json({ success: true, revision: result.revision });
   } catch (e: any) {
     if (e instanceof SyncError) {
@@ -532,6 +560,7 @@ app.post('/api/settings', authenticateToken, requireAdmin, (req, res) => {
   } else {
     db.insert(settings).values({ key, value }).run();
   }
+  recordAudit(req, { action: 'settings.update', entity: 'settings', entityId: String(key) });
   res.json({ success: true });
 });
 
@@ -578,6 +607,16 @@ app.post('/api/database/clear-data', authenticateToken, requireAdmin, async (req
       clearedEquipments: currentEquipmentsCount,
       clearedLocations: preserveLocations ? 0 : currentLocationsCount,
       clearedExecutions: currentExecutionsCount,
+    });
+    recordAudit(req, {
+      action: 'database.clear',
+      entity: 'database',
+      details: {
+        preserveLocations: Boolean(preserveLocations),
+        clearedEquipments: currentEquipmentsCount,
+        clearedLocations: preserveLocations ? 0 : currentLocationsCount,
+        clearedExecutions: currentExecutionsCount,
+      },
     });
   } catch (e: any) {
     res.status(500).json({ success: false, error: e.message });
@@ -637,6 +676,7 @@ app.post('/api/database/reset-to-default', authenticateToken, requireAdmin, asyn
     });
 
     res.json({ success: true, message: 'Datos de demostración restaurados en la base de datos.' });
+    recordAudit(req, { action: 'database.reset', entity: 'database' });
   } catch (e: any) {
     res.status(500).json({ success: false, error: e.message });
   }
@@ -657,6 +697,7 @@ app.post('/api/database/backups', authenticateToken, requireAdmin, async (req, r
   const reason = typeof req.body?.reason === 'string' && req.body.reason.trim() ? req.body.reason : 'manual';
   try {
     const backup = await createBackup(reason);
+    recordAudit(req, { action: 'backup.create', entity: 'backup', entityId: backup.filename });
     res.status(201).json({ success: true, data: backup });
   } catch (e: any) {
     if (e instanceof BackupUnavailableError) {
@@ -679,7 +720,40 @@ app.delete('/api/database/backups/:filename', authenticateToken, requireAdmin, (
     if (!deleteBackup(req.params.filename)) {
       return res.status(404).json({ success: false, error: 'Copia de seguridad no encontrada.' });
     }
+    recordAudit(req, { action: 'backup.delete', entity: 'backup', entityId: req.params.filename });
     res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// --- Bitácora de auditoría (solo lectura: no hay endpoints de edición ni borrado) ---
+
+app.get('/api/audit', authenticateToken, requireAdmin, (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: listAudit(req.query as any),
+      summary: auditSummary(),
+    });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.get('/api/audit/export', authenticateToken, requireAdmin, (req, res) => {
+  const format = req.query.format === 'csv' ? 'csv' : 'json';
+  try {
+    const content = exportAudit(req.query as any, format);
+    const stamp = new Date().toISOString().slice(0, 10);
+    if (format === 'csv') {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="bitacora_${stamp}.csv"`);
+    } else {
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="bitacora_${stamp}.json"`);
+    }
+    res.send(content);
   } catch (e: any) {
     res.status(500).json({ success: false, error: e.message });
   }
@@ -758,6 +832,11 @@ app.post('/api/database/save-config', authenticateToken, requireAdmin, (req, res
   };
 
   saveDbConfig(updated);
+  recordAudit(req, {
+    action: 'database.save-config',
+    entity: 'database',
+    details: { engine, mysqlHost: updated.mysql?.host ?? null },
+  });
   res.json({ success: true, message: 'Configuración de base de datos guardada con éxito.', config: updated });
 });
 
@@ -788,6 +867,17 @@ app.post('/api/database/migrate-to-mysql', authenticateToken, requireAdmin, asyn
       mysql: targetConfig,
     });
   }
+
+  recordAudit(req, {
+    action: 'database.migrate-mysql',
+    entity: 'database',
+    details: {
+      success: migrationResult.success,
+      host: targetConfig.host,
+      database: targetConfig.database,
+      counts: migrationResult.counts ?? null,
+    },
+  });
 
   res.json(migrationResult);
 });
@@ -906,6 +996,12 @@ app.post('/api/logo', authenticateToken, requireAdmin, (req: any, res: any) => {
       uploadedBy: req.user?.username,
     };
     fs.writeFileSync(META_FILE, JSON.stringify(meta, null, 2));
+    recordAudit(req, {
+      action: 'logo.upload',
+      entity: 'logo',
+      entityId: meta.filename,
+      details: { originalName: meta.originalName, mimeType: meta.mimeType },
+    });
     res.json({
       success: true,
       message: 'Logo actualizado correctamente',
@@ -920,12 +1016,15 @@ app.post('/api/logo', authenticateToken, requireAdmin, (req: any, res: any) => {
 
 app.delete('/api/logo', authenticateToken, requireAdmin, (req: any, res: any) => {
   try {
+    let removedFile: string | null = null;
     if (fs.existsSync(META_FILE)) {
       const meta = JSON.parse(fs.readFileSync(META_FILE, 'utf-8'));
       const imagePath = path.join(UPLOADS_DIR, meta.filename);
       if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
       fs.unlinkSync(META_FILE);
+      removedFile = meta.filename;
     }
+    recordAudit(req, { action: 'logo.delete', entity: 'logo', entityId: removedFile });
     res.json({ success: true, message: 'Logo eliminado correctamente' });
   } catch {
     res.status(500).json({ success: false, error: 'Error al eliminar logo' });

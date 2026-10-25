@@ -97,6 +97,7 @@ los datos reales.
 - `tests/security.test.ts`: cabeceras, validación de logo, protección de IA y rate limiting.
 - `tests/sync.test.ts`: lectura/escritura de datos y permisos por rol.
 - `tests/concurrency.test.ts`: bloqueo optimista (409), sincronización no destructiva y copias.
+- `tests/audit.test.ts`: migraciones versionadas y bitácora de auditoría.
 - `tests/dates.test.ts`: fechas locales (sin desfase UTC) y días hábiles.
 - `tests/env.test.ts`: validación de variables de entorno.
 
@@ -124,6 +125,34 @@ mantiene un contador de revisión:
 Además, las escrituras ya **no** borran y reinsertan toda la tabla: se hace _upsert_ de lo
 recibido y se eliminan únicamente los registros ausentes, dentro de una transacción.
 
+## Migraciones versionadas
+
+El esquema se aplica por migraciones numeradas que se ejecutan al arrancar el servidor
+(`src/db/bootstrap.ts`). Cada migración se registra una sola vez en la tabla
+`schema_migrations` junto con un _checksum_ SHA-256:
+
+- Se aplica en orden y dentro de una transacción por migración.
+- Es idempotente: arrancar el servidor varias veces no repite migraciones.
+- Si una migración ya aplicada cambia, solo se emite un aviso: **cree una migración nueva en
+  lugar de editar una existente**.
+
+Migraciones actuales: `0001_initial`, `0002_entity_revisions`, `0003_audit_log`.
+
+## Auditoría (trazabilidad SGC)
+
+La tabla `audit_log` guarda una traza **inmutable** (solo se insertan filas, nunca se editan ni
+se borran por API) de los eventos relevantes:
+
+- Inicios de sesión correctos y fallidos.
+- Altas, cambios y bajas de usuarios.
+- Escrituras de sincronización (equipos, ubicaciones, edificios, planes anuales, ejecuciones).
+- Vaciar datos, restaurar valores por defecto y cambios de configuración.
+- Creación/eliminación de copias de seguridad y cambio de logo.
+
+Se consulta y exporta desde _Configuración de Base de Datos → Bitácora de Auditoría_ (filtros por
+acción, usuario, entidad y rango de fechas): `GET /api/audit` y `GET /api/audit/export?format=csv|json`
+(solo administradores). Las contraseñas nunca se registran.
+
 ## Seguridad
 
 - Contraseñas con `bcrypt` (12 rondas) y tokens JWT de 24 h.
@@ -131,21 +160,33 @@ recibido y se eliminan únicamente los registros ausentes, dentro de una transac
 - Cabeceras `X-Content-Type-Options`, `X-Frame-Options` y `Referrer-Policy`.
 - Subida de logo restringida a PNG/JPG/WEBP de hasta 5 MB, validando el contenido real.
 - El endpoint de IA exige sesión y está limitado a 20 solicitudes por minuto.
-- `.env`, `uploads/`, `data/` y `backups/` están excluidos de Git.
+- `.env`, `uploads/`, `data/`, `backups/` y `logs/` están excluidos de Git.
 
 ## Despliegue en Ubuntu con PM2
 
+El repositorio incluye `ecosystem.config.cjs` ya configurado (modo `fork`, `instances: 1`,
+logs en `logs/`):
+
 ```bash
 npm ci
+cp .env.example .env      # complete JWT_SECRET y demás variables
 npm run build
-
-# PM2 debe ejecutarse en modo fork con una sola instancia (SQLite)
-pm2 start dist/server.cjs --name gesmttofcbv -- --port 3050
+pm2 start ecosystem.config.cjs
 pm2 save
+pm2 startup               # siga la instrucción que imprima para arrancar al reiniciar
 ```
 
-> Mientras se use SQLite, use `exec_mode: fork` e `instances: 1`. El modo cluster con varias
-> instancias provocaría bloqueos de escritura en la base de datos.
+Comandos útiles:
+
+```bash
+pm2 logs gesmttofcbv      # ver logs
+pm2 restart gesmttofcbv   # reiniciar tras un nuevo build
+pm2 status
+```
+
+> Mientras se use SQLite, el proceso debe correr en `exec_mode: fork` con `instances: 1`. El modo
+> cluster con varias instancias provocaría bloqueos de escritura en la base de datos. Si migra a
+> MySQL, puede cambiar a `cluster` con las instancias deseadas.
 
 ## Estructura del proyecto
 
@@ -154,8 +195,10 @@ server.ts                  Punto de entrada del backend (rutas y arranque)
 server/env.ts              Validación de variables de entorno
 server/sync.ts             Sincronización no destructiva y bloqueo optimista
 server/backup.ts           Copias de seguridad del archivo SQLite
-src/db/                    Conexión Drizzle, esquema y creación idempotente de tablas
+server/audit.ts            Bitácora de auditoría (trazabilidad SGC)
+src/db/                    Conexión Drizzle, esquema y migraciones versionadas
 src/services/              Acceso a datos, exportación, Excel, QR, OCR
 src/components/            Vistas y módulos de la interfaz
+ecosystem.config.cjs       Configuración de despliegue con PM2
 tests/                     Pruebas de API y de lógica pura
 ```

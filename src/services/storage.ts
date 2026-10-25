@@ -9,6 +9,8 @@ import {
   DatabaseBackupMetadata,
   ServerBackupInfo,
   ServerBackupSettings,
+  AuditRecord,
+  AuditSummary,
 } from '../types';
 
 const STORAGE_KEYS = {
@@ -1431,6 +1433,45 @@ export const StorageService = {
     const link = document.createElement('a');
     link.href = url;
     link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  },
+
+  // --- Bitácora de auditoría (solo lectura) ---
+  async listAudit(filters: Record<string, string> = {}): Promise<{
+    records: AuditRecord[];
+    summary: AuditSummary;
+  }> {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(filters)) {
+      if (value) params.set(key, value);
+    }
+    const query = params.toString();
+    const response = await apiRequest(`/api/audit${query ? `?${query}` : ''}`);
+    return {
+      records: (response.data as AuditRecord[]) ?? [],
+      summary: response.summary as AuditSummary,
+    };
+  },
+
+  async downloadAudit(format: 'json' | 'csv', filters: Record<string, string> = {}): Promise<void> {
+    const params = new URLSearchParams({ ...filters, format });
+    for (const key of Object.keys(filters)) {
+      if (!filters[key]) params.delete(key);
+    }
+    const res = await fetch(`/api/audit/export?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('fcbv_token')}` },
+    });
+    if (!res.ok) {
+      throw new Error('No se pudo exportar la bitácora de auditoría.');
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `bitacora_${new Date().toISOString().slice(0, 10)}.${format}`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

@@ -139,3 +139,20 @@ export interface ServerBackupSettings {
   intervalHours: number;
   enabled: boolean;
 }
+
+export interface AuditRecord {
+  id: string;
+  timestamp: string;
+  userId: string | null;
+  username: string | null;
+  action: string;
+  entity: string | null;
+  entityId: string | null;
+  details: any;
+}
+
+export interface AuditSummary {
+  actions: string[];
+  usernames: string[];
+  total: number;
+}
