@@ -3,8 +3,9 @@
 Sistema de gestión de mantenimiento preventivo y correctivo para los equipos críticos de
 infraestructura y tecnología de la **Fundación Colegio Bilingüe (FCBV)**.
 
-- **Frontend:** React 19 + Vite + Tailwind CSS 4
-- **Backend:** Express 5 + Drizzle ORM
+- **Frontend:** React 19 + Vite + Tailwind CSS 4, con **React Router** (navegación por URL) y
+  **TanStack Query** (estado de servidor)
+- **Backend:** Express 5 + Drizzle ORM, con **API REST por recurso**
 - **Base de datos:** SQLite (por defecto), con soporte de migración a MySQL
 - **Autenticación:** JWT con roles `admin` y `revisor`
 
@@ -102,6 +103,8 @@ los datos reales.
 - `tests/executions.test.ts`: ciclo de vida SGC de las actas (aprobar, cerrar, reabrir y bloqueo).
 - `tests/sgc.test.ts`: etiquetas, resumen y columnas de trazabilidad SGC de las actas.
 - `tests/reports.test.ts`: render del reporte F05 con el estado SGC reflejado.
+- `tests/routes.test.ts`: rutas URL de los módulos y pestaña por defecto por rol.
+- `tests/queries.test.ts`: cliente de TanStack Query y claves de consulta.
 - `tests/offline.test.ts`: espejo local, cola de escritura offline y sincronización al reconectar.
 - `tests/dates.test.ts`: fechas locales (sin desfase UTC) y días hábiles.
 - `tests/env.test.ts`: validación de variables de entorno.
@@ -199,6 +202,18 @@ Se consulta y exporta desde _Configuración de Base de Datos → Bitácora de Au
 acción, usuario, entidad y rango de fechas): `GET /api/audit` y `GET /api/audit/export?format=csv|json`
 (solo administradores). Las contraseñas nunca se registran.
 
+## Arquitectura de la interfaz (rutas y estado de servidor)
+
+- **React Router**: cada módulo tiene su propia URL (`/panel`, `/equipos`, `/plan`, `/ejecucion`,
+  `/ubicaciones`, `/reportes`, `/usuarios`, `/database`), de modo que son enlazables, recargables y
+  navegables con el historial del navegador. El revisor solo accede a `/ejecucion` y `/reportes`;
+  las rutas de administrador lo redirigen a `/reportes` y las rutas desconocidas a la pestaña por
+  defecto de su rol (`src/routes.ts`).
+- **TanStack Query**: las lecturas (equipos, plan anual, ejecuciones, ubicaciones, edificios) se
+  sirven desde una caché compartida de estado de servidor (`src/services/queries.ts`). Las
+  mutaciones escriben de forma optimista en esa caché y/o la invalidan para releer del servidor.
+  La capa offline de `StorageService` sigue siendo la única puerta de acceso a los datos.
+
 ## Seguridad
 
 - Contraseñas con `bcrypt` (12 rondas) y tokens JWT de 24 h.
@@ -258,14 +273,17 @@ pm2 status
 ## Estructura del proyecto
 
 ```
-server.ts                  Punto de entrada del backend (rutas y arranque)
+server.ts                  Punto de entrada del backend (rutas REST y arranque)
 server/env.ts              Validación de variables de entorno
-server/sync.ts             Sincronización no destructiva y bloqueo optimista
+server/sync.ts             Lógica de sincronización no destructiva y bloqueo optimista
 server/backup.ts           Copias de seguridad del archivo SQLite
 server/audit.ts            Bitácora de auditoría (trazabilidad SGC)
 public/                    Service worker, manifest e icono de la PWA
 src/db/                    Conexión Drizzle, esquema y migraciones versionadas
+src/App.tsx                Composición de la interfaz y manejadores de mutación
+src/routes.ts              Rutas URL de cada módulo (React Router)
 src/services/              Acceso a datos, exportación, Excel, QR, OCR
+src/services/queries.ts    Consultas de estado de servidor (TanStack Query)
 src/services/offline.ts    Espejo local (IndexedDB) y cola de escritura offline
 src/services/sgc.ts        Utilidades del ciclo de vida SGC (etiquetas y trazabilidad)
 src/components/            Vistas y módulos de la interfaz

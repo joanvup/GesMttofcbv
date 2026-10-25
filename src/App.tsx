@@ -1,7 +1,16 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Equipment, EquipmentFrequency, MaintenanceExecution, CampusLocation } from './types';
 import { StorageService, getDefaultMonthsForFrequency } from './services/storage';
+import {
+  queryKeys,
+  useAnnualPlan,
+  useBuildings,
+  useEquipments,
+  useExecutions,
+  useLocations,
+} from './services/queries';
 import { ActiveTab } from './components/Navbar';
 import { TAB_PATHS, defaultTabForRole, pathToTab } from './routes';
 import { Sidebar } from './components/Sidebar';
@@ -44,7 +53,6 @@ export default function App() {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [technicianSignature, setTechnicianSignature] = useState<string | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Navegación por rutas (React Router): la pestaña activa se deriva de la URL,
   // de modo que cada módulo es enlazable y navegable con el historial.
@@ -99,7 +107,6 @@ export default function App() {
       localStorage.removeItem('fcbv_user');
       setToken(null);
       setUser(null);
-      setLoadError(null);
       void StorageService.clearOfflineCache();
     };
     window.addEventListener('fcbv:unauthorized', onUnauthorized);
@@ -125,13 +132,39 @@ export default function App() {
     };
   }, [user]);
 
-  // ... (Rest of existing state variables)
+  // Estado de servidor con TanStack Query (equipos, plan, ejecuciones, ubicaciones, edificios).
+  // Las consultas se habilitan tras validar la sesión y se comparten por clave.
   const [selectedYear, setSelectedYear] = useState<number>(2026);
-  const [equipments, setEquipments] = useState<Equipment[]>([]);
-  const [planMatrix, setPlanMatrix] = useState<Record<string, boolean[]>>({});
-  const [executions, setExecutions] = useState<MaintenanceExecution[]>([]);
-  const [locations, setLocations] = useState<CampusLocation[]>([]);
-  const [buildings, setBuildings] = useState<string[]>([]);
+
+  const queryClient = useQueryClient();
+  const queriesEnabled = Boolean(user) && !isAuthLoading;
+  const equipmentsQuery = useEquipments(queriesEnabled);
+  const planQuery = useAnnualPlan(selectedYear, queriesEnabled);
+  const executionsQuery = useExecutions(queriesEnabled);
+  const locationsQuery = useLocations(queriesEnabled);
+  const buildingsQuery = useBuildings(queriesEnabled);
+
+  const equipments = useMemo(() => equipmentsQuery.data ?? [], [equipmentsQuery.data]);
+  const planMatrix = useMemo(() => planQuery.data ?? {}, [planQuery.data]);
+  const executions = useMemo(() => executionsQuery.data ?? [], [executionsQuery.data]);
+  const locations = useMemo(() => locationsQuery.data ?? [], [locationsQuery.data]);
+  const buildings = useMemo(() => buildingsQuery.data ?? [], [buildingsQuery.data]);
+
+  // Las mutaciones escriben de forma optimista en la caché de consultas, que es la
+  // única fuente de verdad de la interfaz (lecturas y escrituras comparten caché).
+  const setEquipments = (data: Equipment[]) => queryClient.setQueryData(queryKeys.equipments, data);
+  const setPlanMatrix = (data: Record<string, boolean[]>) =>
+    queryClient.setQueryData(queryKeys.annualPlan(selectedYear), data);
+  const setExecutions = (data: MaintenanceExecution[]) =>
+    queryClient.setQueryData(queryKeys.executions, data);
+  const setLocations = (data: CampusLocation[]) => queryClient.setQueryData(queryKeys.locations, data);
+  const setBuildings = (data: string[]) => queryClient.setQueryData(queryKeys.buildings, data);
+
+  // Error de carga inicial: bloquea las acciones para no sobrescribir con estado vacío.
+  const failedQuery = [equipmentsQuery, planQuery, executionsQuery, locationsQuery, buildingsQuery].find(
+    (q) => q.isError && q.data === undefined
+  );
+  const loadError = queriesEnabled && failedQuery ? (failedQuery.error as Error).message : null;
 
   // Estados de navegación rápida para reportes
   const [reportsInitialFormat, setReportsInitialFormat] = useState<ReportFormatId>('F01');
@@ -164,48 +197,13 @@ export default function App() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  // Carga inicial
-  useEffect(() => {
-    if (user) {
-      loadData(selectedYear);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    StorageService.getAnnualPlan(selectedYear)
-      .then((plan) => {
-        if (!cancelled) setPlanMatrix(plan);
-      })
-      .catch((e: any) => {
-        if (!cancelled) showToast(`No se pudo cargar el cronograma: ${e.message}`, 'error');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedYear, user]);
-
-  const loadData = async (year: number) => {
-    try {
-      const loadedEquipments = await StorageService.getEquipmentList();
-      const loadedPlan = await StorageService.getAnnualPlan(year);
-      const loadedExecutions = await StorageService.getExecutions();
-      const loadedLocations = await StorageService.getLocations();
-      const loadedBuildings = await StorageService.getBuildings();
-
-      setEquipments(loadedEquipments);
-      setPlanMatrix(loadedPlan);
-      setExecutions(loadedExecutions);
-      setLocations(loadedLocations);
-      setBuildings(loadedBuildings);
-      setLoadError(null);
-    } catch (e: any) {
-      const message = e?.message || 'No se pudieron cargar los datos.';
-      setLoadError(message);
-      showToast(message, 'error');
-    }
-  };
+  // Recarga el estado de servidor (conflictos, reconexión, reintentos tras error).
+  const loadData = useCallback(
+    async (_year?: number) => {
+      await queryClient.invalidateQueries();
+    },
+    [queryClient]
+  );
 
   // Bloqueo optimista: si otro usuario guarda a la vez, el servidor responde
   // 409. Avisamos y recargamos para evitar seguir trabajando sobre datos viejos.
@@ -220,7 +218,7 @@ export default function App() {
 
     window.addEventListener('fcbv:sync-conflict', onSyncConflict);
     return () => window.removeEventListener('fcbv:sync-conflict', onSyncConflict);
-  }, [user, selectedYear]);
+  }, [user, selectedYear, loadData]);
 
   // --------------------------------------------------------------------------
   // Manejadores de Equipos
