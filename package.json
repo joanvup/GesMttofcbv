@@ -10,7 +10,8 @@
     "start": "npm run db:push && node dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "security:set-password": "tsx scripts/set-password.ts"
   },
   "dependencies": {
     "@google/genai": "^2.24.0",

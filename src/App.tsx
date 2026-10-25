@@ -30,6 +30,8 @@ export default function App() {
   const [user, setUser] = useState<any>(JSON.parse(localStorage.getItem('fcbv_user') || 'null'));
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [technicianSignature, setTechnicianSignature] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Navegación
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
@@ -78,6 +80,36 @@ export default function App() {
     setUser(null);
   };
 
+  // Si cualquier llamada recibe 401, cerramos la sesión de forma centralizada
+  useEffect(() => {
+    const onUnauthorized = () => {
+      localStorage.removeItem('fcbv_token');
+      localStorage.removeItem('fcbv_user');
+      setToken(null);
+      setUser(null);
+      setLoadError(null);
+    };
+    window.addEventListener('fcbv:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('fcbv:unauthorized', onUnauthorized);
+  }, []);
+
+  // Cargar firma institucional desde el servidor (fuente única de verdad)
+  useEffect(() => {
+    if (!user) {
+      setTechnicianSignature(null);
+      return;
+    }
+    let cancelled = false;
+    StorageService.getTechnicianSignature()
+      .then((signature) => {
+        if (!cancelled) setTechnicianSignature(signature);
+      })
+      .catch(() => {
+        if (!cancelled) setTechnicianSignature(null);
+      });
+    return () => { cancelled = true; };
+  }, [user]);
+
   // ... (Rest of existing state variables)
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [equipments, setEquipments] = useState<Equipment[]>([]);
@@ -122,24 +154,37 @@ export default function App() {
   }, [user]);
 
   useEffect(() => {
-    if (user) {
-      const plan = StorageService.getAnnualPlan(selectedYear);
-      setPlanMatrix(plan);
-    }
+    if (!user) return;
+    let cancelled = false;
+    StorageService.getAnnualPlan(selectedYear)
+      .then((plan) => {
+        if (!cancelled) setPlanMatrix(plan);
+      })
+      .catch((e: any) => {
+        if (!cancelled) showToast(`No se pudo cargar el cronograma: ${e.message}`, 'error');
+      });
+    return () => { cancelled = true; };
   }, [selectedYear, user]);
 
   const loadData = async (year: number) => {
-    const loadedEquipments = await StorageService.getEquipmentList();
-    const loadedPlan = await StorageService.getAnnualPlan(year);
-    const loadedExecutions = await StorageService.getExecutions();
-    const loadedLocations = await StorageService.getLocations();
-    const loadedBuildings = await StorageService.getBuildings();
+    try {
+      const loadedEquipments = await StorageService.getEquipmentList();
+      const loadedPlan = await StorageService.getAnnualPlan(year);
+      const loadedExecutions = await StorageService.getExecutions();
+      const loadedLocations = await StorageService.getLocations();
+      const loadedBuildings = await StorageService.getBuildings();
 
-    setEquipments(loadedEquipments);
-    setPlanMatrix(loadedPlan);
-    setExecutions(loadedExecutions);
-    setLocations(loadedLocations);
-    setBuildings(loadedBuildings);
+      setEquipments(loadedEquipments);
+      setPlanMatrix(loadedPlan);
+      setExecutions(loadedExecutions);
+      setLocations(loadedLocations);
+      setBuildings(loadedBuildings);
+      setLoadError(null);
+    } catch (e: any) {
+      const message = e?.message || 'No se pudieron cargar los datos.';
+      setLoadError(message);
+      showToast(message, 'error');
+    }
   };
 
   // --------------------------------------------------------------------------
@@ -280,12 +325,16 @@ export default function App() {
     const updatedPlan = { ...planMatrix, [equipmentId]: currentSchedule };
     
     setPlanMatrix(updatedPlan);
-    await StorageService.saveAnnualPlan(selectedYear, updatedPlan);
-    
-    const eq = equipments.find((e) => e.id === equipmentId);
-    if (eq) {
-      const stateTxt = currentSchedule[monthIndex] ? 'programado' : 'desprogramado';
-      showToast(`${eq.code}: Mantenimiento mes ${monthIndex + 1} ${stateTxt}.`, 'info');
+    try {
+      await StorageService.saveAnnualPlan(selectedYear, updatedPlan);
+      const eq = equipments.find((e) => e.id === equipmentId);
+      if (eq) {
+        const stateTxt = currentSchedule[monthIndex] ? 'programado' : 'desprogramado';
+        showToast(`${eq.code}: Mantenimiento mes ${monthIndex + 1} ${stateTxt}.`, 'info');
+      }
+    } catch (e: any) {
+      showToast(`No se pudo guardar el cronograma: ${e.message}`, 'error');
+      await loadData(selectedYear);
     }
   };
 
@@ -296,41 +345,54 @@ export default function App() {
       newPlan[eq.id] = eq.status === 'activo' ? getDefaultMonthsForFrequency(eq.frequency, eq.customMonths) : new Array(12).fill(false);
     });
     setPlanMatrix(newPlan);
-    await StorageService.saveAnnualPlan(selectedYear, newPlan);
-    showToast(`Cronograma ${selectedYear} recalculado.`, 'success');
+    try {
+      await StorageService.saveAnnualPlan(selectedYear, newPlan);
+      showToast(`Cronograma ${selectedYear} recalculado.`, 'success');
+    } catch (e: any) {
+      showToast(`No se pudo recalcular el cronograma: ${e.message}`, 'error');
+      await loadData(selectedYear);
+    }
   };
 
   const [preSelectedPlanEquipmentIds, setPreSelectedPlanEquipmentIds] = useState<string[]>([]);
   const [openBulkModalOnPlan, setOpenBulkModalOnPlan] = useState<boolean>(false);
 
-  const handleBulkUpdatePlan = (updatedPlan: Record<string, boolean[]>, updatedEquipments?: Equipment[], message?: string, updatedExecutions?: MaintenanceExecution[]) => {
+  const handleBulkUpdatePlan = async (updatedPlan: Record<string, boolean[]>, updatedEquipments?: Equipment[], message?: string, updatedExecutions?: MaintenanceExecution[]) => {
     if (user?.role !== 'admin') return;
-    setPlanMatrix(updatedPlan);
-     StorageService.saveAnnualPlan(selectedYear, updatedPlan);
-    if (updatedEquipments) {
-      setEquipments(updatedEquipments);
-      StorageService.saveEquipmentList(updatedEquipments);
+    try {
+      setPlanMatrix(updatedPlan);
+      await StorageService.saveAnnualPlan(selectedYear, updatedPlan);
+      if (updatedEquipments) {
+        setEquipments(updatedEquipments);
+        await StorageService.saveEquipmentList(updatedEquipments);
+      }
+      if (updatedExecutions) {
+        setExecutions(updatedExecutions);
+        await StorageService.saveExecutions(updatedExecutions);
+      }
+      showToast(message || 'Programación masiva actualizada.', 'success');
+    } catch (e: any) {
+      showToast(`Error al guardar la programación: ${e.message}`, 'error');
     }
-    if (updatedExecutions) {
-      setExecutions(updatedExecutions);
-      StorageService.saveExecutions(updatedExecutions);
-    }
-    showToast(message || 'Programación masiva actualizada.', 'success');
   };
 
   const handleBulkChangeFrequency = async (equipmentIds: string[], frequency: EquipmentFrequency) => {
     if (user?.role !== 'admin') return;
-    const updated = await StorageService.updateEquipmentsFrequency(equipmentIds, frequency);
-    setEquipments(updated);
+    try {
+      const updated = await StorageService.updateEquipmentsFrequency(equipmentIds, frequency);
+      setEquipments(updated);
 
-    const plan = { ...planMatrix };
-    equipmentIds.forEach((id) => {
-      const eq = updated.find((e) => e.id === id);
-      if (eq && eq.status === 'activo') plan[id] = getDefaultMonthsForFrequency(frequency, eq.customMonths);
-    });
-    setPlanMatrix(plan);
-    StorageService.saveAnnualPlan(selectedYear, plan);
-    showToast('Frecuencia y cronograma actualizados.', 'success');
+      const plan = { ...planMatrix };
+      equipmentIds.forEach((id) => {
+        const eq = updated.find((e) => e.id === id);
+        if (eq && eq.status === 'activo') plan[id] = getDefaultMonthsForFrequency(frequency, eq.customMonths);
+      });
+      setPlanMatrix(plan);
+      await StorageService.saveAnnualPlan(selectedYear, plan);
+      showToast('Frecuencia y cronograma actualizados.', 'success');
+    } catch (e: any) {
+      showToast(`Error al actualizar la frecuencia: ${e.message}`, 'error');
+    }
   };
 
   const handleNavigateToPlanForBulkSchedule = (equipmentIds: string[]) => {
@@ -341,52 +403,72 @@ export default function App() {
 
   const handleSaveExecution = async (execution: MaintenanceExecution) => {
     if (user?.role !== 'admin') return;
-    await StorageService.upsertExecution(execution);
-    setExecutions(await StorageService.getExecutions());
-    showToast(execution.isExecuted ? 'Mantenimiento marcado como EJECUTADO.' : 'Mantenimiento programado.', 'success');
+    try {
+      await StorageService.upsertExecution(execution);
+      setExecutions(await StorageService.getExecutions());
+      showToast(execution.isExecuted ? 'Mantenimiento marcado como EJECUTADO.' : 'Mantenimiento programado.', 'success');
+    } catch (e: any) {
+      showToast(`Error al guardar el mantenimiento: ${e.message}`, 'error');
+    }
   };
 
   const handleBulkSaveExecutions = async (executedList: MaintenanceExecution[], count: number) => {
     if (user?.role !== 'admin') return;
-    const currentList = await StorageService.getExecutions();
-    const map = new Map<string, MaintenanceExecution>();
-    currentList.forEach((e) => map.set(`${e.equipmentId}_${e.year}_${e.month}`, e));
-    executedList.forEach((e) => map.set(`${e.equipmentId}_${e.year}_${e.month}`, e));
-    
-    const merged = Array.from(map.values());
-    await StorageService.saveExecutions(merged);
-    setExecutions(merged);
-    showToast(`Ejecución masiva exitosa: ${count} órdenes.`, 'success');
+    try {
+      const currentList = await StorageService.getExecutions();
+      const map = new Map<string, MaintenanceExecution>();
+      currentList.forEach((e) => map.set(`${e.equipmentId}_${e.year}_${e.month}`, e));
+      executedList.forEach((e) => map.set(`${e.equipmentId}_${e.year}_${e.month}`, e));
+
+      const merged = Array.from(map.values());
+      await StorageService.saveExecutions(merged);
+      setExecutions(merged);
+      showToast(`Ejecución masiva exitosa: ${count} órdenes.`, 'success');
+    } catch (e: any) {
+      showToast(`Error en la ejecución masiva: ${e.message}`, 'error');
+    }
   };
 
   const handleResetAllData = async () => {
     if (user?.role !== 'admin') return;
-    await StorageService.resetToDefault?.();
-    loadData(selectedYear);
-    showToast('Datos de demostración restaurados.', 'info');
+    try {
+      await StorageService.resetToDefault();
+      await loadData(selectedYear);
+      showToast('Datos de demostración restaurados.', 'info');
+    } catch (e: any) {
+      showToast(`Error al restaurar los datos: ${e.message}`, 'error');
+    }
   };
 
   const handleClearAllDemoData = async (options: { preserveLocations: boolean }) => {
     if (user?.role !== 'admin') return;
-    await StorageService.clearAllData(options);
-    loadData(selectedYear);
-    showToast('Datos limpiados.', 'info');
+    try {
+      await StorageService.clearAllData(options);
+      await loadData(selectedYear);
+      showToast('Datos limpiados.', 'info');
+    } catch (e: any) {
+      showToast(`Error al limpiar los datos: ${e.message}`, 'error');
+    }
   };
 
-  const handleRestoreDatabaseSuccess = (summary: any) => {
+  const handleRestoreDatabaseSuccess = async (summary: any) => {
     if (user?.role !== 'admin') return;
-    loadData(selectedYear);
+    await loadData(selectedYear);
     showToast('Copia de seguridad restaurada.', 'success');
   };
 
   const handleSaveLocation = async (locationData: CampusLocation, oldName?: string) => {
     if (user?.role !== 'admin') return;
-    await StorageService.upsertLocation(locationData, oldName);
-    setLocations(await StorageService.getLocations());
-    if (oldName && oldName.trim() !== locationData.name.trim()) {
-      setEquipments(await StorageService.getEquipmentList());
+    try {
+      await StorageService.upsertLocation(locationData, oldName);
+      setLocations(await StorageService.getLocations());
+      if (oldName && oldName.trim() !== locationData.name.trim()) {
+        setEquipments(await StorageService.getEquipmentList());
+      }
+      showToast(`Ubicación guardada con éxito.`);
+    } catch (e: any) {
+      showToast(`Error al guardar la ubicación: ${e.message}`, 'error');
     }
-    showToast(`Ubicación guardada con éxito.`);
   };
 
   const handleDeleteLocation = async (locationId: string, reassignToLocationName?: string) => {
@@ -394,26 +476,34 @@ export default function App() {
     const locToDelete = locations.find((l) => l.id === locationId);
     if (!locToDelete) return;
 
-    if (reassignToLocationName && reassignToLocationName.trim()) {
-      const updatedEquipments = equipments.map((eq) => {
-        if (eq.location.toLowerCase() === locToDelete.name.toLowerCase()) {
-          return { ...eq, location: reassignToLocationName.trim(), updatedAt: new Date().toISOString() };
-        }
-        return eq;
-      });
-      setEquipments(updatedEquipments);
-      StorageService.saveEquipmentList(updatedEquipments);
+    try {
+      if (reassignToLocationName && reassignToLocationName.trim()) {
+        const updatedEquipments = equipments.map((eq) => {
+          if (eq.location.toLowerCase() === locToDelete.name.toLowerCase()) {
+            return { ...eq, location: reassignToLocationName.trim(), updatedAt: new Date().toISOString() };
+          }
+          return eq;
+        });
+        setEquipments(updatedEquipments);
+        await StorageService.saveEquipmentList(updatedEquipments);
+      }
+      await StorageService.deleteLocation(locationId);
+      setLocations(await StorageService.getLocations());
+      showToast('Ubicación eliminada', 'info');
+    } catch (e: any) {
+      showToast(`Error al eliminar la ubicación: ${e.message}`, 'error');
     }
-    await StorageService.deleteLocation(locationId);
-    setLocations(await StorageService.getLocations());
-    showToast('Ubicación eliminada', 'info');
   };
 
-  const handleQuickCreateLocation = (newLoc: CampusLocation) => {
+  const handleQuickCreateLocation = async (newLoc: CampusLocation) => {
     if (user?.role !== 'admin') return;
-    StorageService.upsertLocation(newLoc);
-    setLocations( StorageService.getLocations());
-    showToast(`Nueva ubicación registrada.`, 'success');
+    try {
+      await StorageService.upsertLocation(newLoc);
+      setLocations(await StorageService.getLocations());
+      showToast(`Nueva ubicación registrada.`, 'success');
+    } catch (e: any) {
+      showToast(`Error al registrar la ubicación: ${e.message}`, 'error');
+    }
   };
 
   const handleImportLocations = async (importedLocations: CampusLocation[]) => {
@@ -626,6 +716,36 @@ export default function App() {
           </div>
         )}
 
+        {/* Bloqueo de seguridad si la carga inicial falla: evita sobrescribir datos con estado vacío */}
+        {loadError && (
+          <div className="fixed inset-0 z-[60] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl border border-rose-200 max-w-md w-full p-6 text-center">
+              <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-bold text-slate-900">No se pudieron cargar los datos</h3>
+              <p className="text-xs text-slate-600 mt-2">{loadError}</p>
+              <p className="text-[11px] text-slate-500 mt-3">
+                Para evitar sobrescribir información, las acciones están bloqueadas hasta recuperar la conexión.
+              </p>
+              <div className="flex gap-2 mt-5">
+                <button
+                  onClick={() => loadData(selectedYear)}
+                  className="flex-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors"
+                >
+                  Reintentar
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors"
+                >
+                  Cerrar sesión
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Contenido Principal con Scroll Independiente */}
         <main className="flex-1 overflow-y-auto w-full">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
@@ -715,7 +835,7 @@ export default function App() {
                 selectedYear={selectedYear}
                 onYearChange={setSelectedYear}
                 locations={locations}
-                technicianSignature={StorageService.getTechnicianSignature()}
+                technicianSignature={technicianSignature}
                 initialFormat={reportsInitialFormat}
                 initialEquipmentId={reportsInitialEquipmentId}
               />

@@ -6,3 +6,13 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Datos locales y secretos de ejecución (nunca versionar)
+uploads/
+data/
+backups/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.db
+*.db-journal

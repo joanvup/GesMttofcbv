@@ -20,7 +20,7 @@ import {
   FileSignature
 } from 'lucide-react';
 import { Equipment, MaintenanceExecution } from '../../types';
-import { MONTH_NAMES, getFirstBusinessDayOfMonth } from '../../services/storage';
+import { MONTH_NAMES, getFirstBusinessDayOfMonth, StorageService } from '../../services/storage';
 import { SignaturePad } from '../SignaturePad';
 
 // Generador de Firma Electrónica Institucional Certificada
@@ -165,15 +165,29 @@ export const BulkExecutionModal: React.FC<BulkExecutionModalProps> = ({
   const [overwriteAlreadyExecuted, setOverwriteAlreadyExecuted] = useState(false);
   const [completeAllTasks, setCompleteAllTasks] = useState(true);
 
-  // Firma digital
-  const [signatureDataUrl, setSignatureDataUrl] = useState<string>(() => {
-    const saved = localStorage.getItem('fcbv_technician_signature');
-    if (saved) return saved;
-    return generateInstitutionalDigitalSignature('Ing. Carlos Mendoza', 'Líder de Infraestructura y Mantenimiento FCBV');
-  });
+  // Firma digital (la firma predeterminada vive en el servidor)
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string>(() =>
+    generateInstitutionalDigitalSignature('Ing. Carlos Mendoza', 'Líder de Infraestructura y Mantenimiento FCBV')
+  );
+  const [savedSignature, setSavedSignature] = useState<string>('');
   const [signatureMode, setSignatureMode] = useState<'draw' | 'generate' | 'upload'>('generate');
   const [saveAsDefaultSignature, setSaveAsDefaultSignature] = useState(true);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Cargar la firma guardada desde el servidor (fuente única de verdad)
+  useEffect(() => {
+    let cancelled = false;
+    StorageService.getTechnicianSignature()
+      .then((saved) => {
+        if (cancelled || !saved) return;
+        setSavedSignature(saved);
+        setSignatureDataUrl(saved);
+      })
+      .catch(() => {
+        // Sin firma guardada o sin conexión: se mantiene la firma generada localmente
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   // Filtro de búsqueda dentro del modal
   const [modalSearch, setModalSearch] = useState('');
@@ -278,7 +292,7 @@ export const BulkExecutionModal: React.FC<BulkExecutionModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (eligibleTargets.length === 0) {
@@ -304,9 +318,10 @@ export const BulkExecutionModal: React.FC<BulkExecutionModalProps> = ({
     // Guardar firma como predeterminada si fue seleccionado
     if (saveAsDefaultSignature && finalSignature) {
       try {
-        localStorage.setItem('fcbv_technician_signature', finalSignature);
+        await StorageService.saveTechnicianSignature(finalSignature);
+        setSavedSignature(finalSignature);
       } catch (err) {
-        console.warn('No se pudo guardar la firma en localStorage:', err);
+        console.warn('No se pudo guardar la firma en el servidor:', err);
       }
     }
 
@@ -764,13 +779,10 @@ export const BulkExecutionModal: React.FC<BulkExecutionModalProps> = ({
               </div>
 
               <div className="flex items-center gap-2 self-end sm:self-center">
-                {localStorage.getItem('fcbv_technician_signature') && (
+                {savedSignature && (
                   <button
                     type="button"
-                    onClick={() => {
-                      const saved = localStorage.getItem('fcbv_technician_signature');
-                      if (saved) setSignatureDataUrl(saved);
-                    }}
+                    onClick={() => setSignatureDataUrl(savedSignature)}
                     className="text-[11px] text-indigo-700 hover:text-indigo-900 font-semibold px-2 py-1 bg-white border border-indigo-200 rounded hover:bg-indigo-50 transition-colors"
                   >
                     Usar firma guardada

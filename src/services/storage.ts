@@ -213,6 +213,22 @@ export function getFirstBusinessDayOfMonth(year: number, month: number): string 
   return `${year}-${String(month).padStart(2, '0')}-01`;
 }
 
+// Fecha local en formato YYYY-MM-DD.
+// Evita el desfase de un día que produce toISOString() en zonas como UTC-5.
+export function formatLocalDate(date: Date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// Fecha y hora local en formato YYYY-MM-DD HH:mm
+export function formatLocalDateTime(date: Date = new Date()): string {
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  return `${formatLocalDate(date)} ${hh}:${mm}`;
+}
+
 // Seed inicial representativo para el Colegio FCBV
 const INITIAL_EQUIPMENTS: Equipment[] = [
   {
@@ -588,6 +604,17 @@ const getAuthHeaders = () => {
 
 const apiCall = async (url: string, method: string = 'GET', body?: any) => {
   const res = await fetch(url, { method, headers: getAuthHeaders(), body: body ? JSON.stringify(body) : undefined });
+
+  // Sesión inválida o expirada: limpiar credenciales y avisar a la app
+  if (res.status === 401) {
+    localStorage.removeItem('fcbv_token');
+    localStorage.removeItem('fcbv_user');
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('fcbv:unauthorized'));
+    }
+    throw new Error('Sesión expirada. Inicie sesión nuevamente.');
+  }
+
   if (!res.ok) {
     if (res.status === 413) {
       throw new Error('El tamaño de la carga excede el límite permitido por el servidor web (413 Payload Too Large). Verifique client_max_body_size en Nginx.');
@@ -607,7 +634,7 @@ const apiCall = async (url: string, method: string = 'GET', body?: any) => {
 
 export const StorageService = {
   async getEquipmentList(): Promise<Equipment[]> {
-    try { return await apiCall('/api/sync/equipments'); } catch(e) { console.error(e); return []; }
+    return await apiCall('/api/sync/equipments');
   },
 
   async saveEquipmentList(list: Equipment[]): Promise<void> {
@@ -616,23 +643,22 @@ export const StorageService = {
 
   // Obtiene la matriz anual para un año específico
   async getAnnualPlan(year: number): Promise<Record<string, boolean[]>> {
-    try { 
-       const plans = await apiCall('/api/sync/annualPlans'); 
-       if (plans[year]) return plans[year];
-       // Generar automáticamente a partir de los equipos registrados
-       const equipments = await this.getEquipmentList();
-       const newPlanForYear: Record<string, boolean[]> = {};
-       equipments.forEach((eq: any) => {
-         if (eq.status === 'activo') {
-           newPlanForYear[eq.id] = getDefaultMonthsForFrequency(eq.frequency, eq.customMonths);
-         } else {
-           newPlanForYear[eq.id] = new Array(12).fill(false);
-         }
-       });
-       plans[year] = newPlanForYear;
-       await this.saveAllAnnualPlans(plans);
-       return newPlanForYear;
-    } catch(e) { console.error(e); return {}; }
+    const plans = await apiCall('/api/sync/annualPlans');
+    if (plans[year]) return plans[year];
+
+    // Generar automáticamente a partir de los equipos registrados
+    const equipments = await this.getEquipmentList();
+    const newPlanForYear: Record<string, boolean[]> = {};
+    equipments.forEach((eq: any) => {
+      if (eq.status === 'activo') {
+        newPlanForYear[eq.id] = getDefaultMonthsForFrequency(eq.frequency, eq.customMonths);
+      } else {
+        newPlanForYear[eq.id] = new Array(12).fill(false);
+      }
+    });
+    plans[year] = newPlanForYear;
+    await this.saveAllAnnualPlans(plans);
+    return newPlanForYear;
   },
 
   async saveAnnualPlan(year: number, plan: Record<string, boolean[]>): Promise<void> {
@@ -674,7 +700,7 @@ export const StorageService = {
 
   // Obtiene todas las ejecuciones registradas
   async getExecutions(): Promise<MaintenanceExecution[]> {
-    try { return await apiCall('/api/sync/executions'); } catch(e) { console.error(e); return []; }
+    return await apiCall('/api/sync/executions');
   },
 
   async saveExecutions(list: MaintenanceExecution[]): Promise<void> {
@@ -711,9 +737,9 @@ export const StorageService = {
       equipmentId: execution.equipmentId,
       year: execution.year || now.getFullYear(),
       month: execution.month || (now.getMonth() + 1),
-      scheduledDate: execution.scheduledDate || now.toISOString().split('T')[0],
+      scheduledDate: execution.scheduledDate || formatLocalDate(now),
       isExecuted: true,
-      executedDate: execution.executedDate || now.toISOString().slice(0, 16).replace('T', ' '),
+      executedDate: execution.executedDate || formatLocalDateTime(now),
       responsibleName: execution.responsibleName || 'Técnico de Mantenimiento FCBV',
       responsibleRole: execution.responsibleRole || 'Técnico FCBV',
       signatureDataUrl: execution.signatureDataUrl,
@@ -760,7 +786,7 @@ export const StorageService = {
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth() + 1; // 1 to 12
-    const currentDayStr = today.toISOString().split('T')[0];
+    const currentDayStr = formatLocalDate(today);
 
     // Si tiene fecha programada y esa fecha ya pasó respecto a hoy
     if (execution && execution.scheduledDate) {
@@ -781,7 +807,7 @@ export const StorageService = {
 
   // Obtiene la lista de ubicaciones del campus
   async getLocations(): Promise<CampusLocation[]> {
-    try { return await apiCall('/api/sync/locations'); } catch(e) { console.error(e); return []; }
+    return await apiCall('/api/sync/locations');
   },
 
   async saveLocations(list: CampusLocation[]): Promise<void> {
@@ -843,7 +869,7 @@ export const StorageService = {
     const existingMap = new Map<string, CampusLocation>();
     list.forEach((l) => existingMap.set(l.name.toLowerCase().trim(), l));
 
-    const currentBuildings = this.getBuildings();
+    const currentBuildings = await this.getBuildings();
     const buildingsSet = new Set<string>(currentBuildings);
     let buildingsModified = false;
 
@@ -885,11 +911,11 @@ export const StorageService = {
     });
 
     if (createdLocations.length > 0) {
-       this.saveLocations(list);
+      await this.saveLocations(list);
     }
 
     if (buildingsModified) {
-       this.saveBuildings(Array.from(buildingsSet));
+      await this.saveBuildings(Array.from(buildingsSet));
     }
 
     return { createdLocations, allLocations: list };
@@ -899,43 +925,43 @@ export const StorageService = {
   // GESTIÓN DE EDIFICIOS Y BLOQUES INSTITUCIONALES (EDITABLES)
   // --------------------------------------------------------------------------
   async getBuildings(): Promise<string[]> {
-    try { return await apiCall('/api/sync/buildings'); } catch(e) { console.error(e); return []; }
+    return await apiCall('/api/sync/buildings');
   },
 
   async saveBuildings(list: string[]): Promise<void> {
-    try { await apiCall('/api/sync/buildings', 'POST', list); } catch(e) { console.error(e); }
+    await apiCall('/api/sync/buildings', 'POST', list);
   },
 
   async addBuilding(name: string): Promise<{ success: boolean; message: string; buildings: string[] }> {
     const trimmed = name.trim();
+    const list = await this.getBuildings();
     if (!trimmed) {
-      return { success: false, message: 'El nombre del edificio no puede estar vacío.', buildings: this.getBuildings() };
+      return { success: false, message: 'El nombre del edificio no puede estar vacío.', buildings: list };
     }
-    const list =  this.getBuildings();
     if (list.some((b) => b.toLowerCase() === trimmed.toLowerCase())) {
       return { success: false, message: `El edificio o bloque "${trimmed}" ya existe en el catálogo.`, buildings: list };
     }
     const updated = [...list, trimmed];
-     this.saveBuildings(updated);
+    await this.saveBuildings(updated);
     return { success: true, message: `Edificio o bloque "${trimmed}" agregado con éxito.`, buildings: updated };
   },
 
   async renameBuilding(oldName: string, newName: string): Promise<{ success: boolean; message: string; buildings: string[]; affectedLocationsCount: number }> {
     const trimmedOld = oldName.trim();
     const trimmedNew = newName.trim();
+    const list = await this.getBuildings();
     if (!trimmedNew) {
-      return { success: false, message: 'El nuevo nombre no puede estar vacío.', buildings: this.getBuildings(), affectedLocationsCount: 0 };
+      return { success: false, message: 'El nuevo nombre no puede estar vacío.', buildings: list, affectedLocationsCount: 0 };
     }
-    const list =  this.getBuildings();
     if (trimmedOld.toLowerCase() !== trimmedNew.toLowerCase() && list.some((b) => b.toLowerCase() === trimmedNew.toLowerCase())) {
       return { success: false, message: `Ya existe un edificio con el nombre "${trimmedNew}".`, buildings: list, affectedLocationsCount: 0 };
     }
 
     const updatedBuildings = list.map((b) => (b.toLowerCase() === trimmedOld.toLowerCase() ? trimmedNew : b));
-     this.saveBuildings(updatedBuildings);
+    await this.saveBuildings(updatedBuildings);
 
     // Sincronizar en cascada todas las ubicaciones asociadas al edificio
-    const locations =  this.getLocations();
+    const locations = await this.getLocations();
     let affected = 0;
     const updatedLocations = locations.map((loc) => {
       if (loc.building.toLowerCase() === trimmedOld.toLowerCase()) {
@@ -946,7 +972,7 @@ export const StorageService = {
     });
 
     if (affected > 0) {
-       this.saveLocations(updatedLocations);
+      await this.saveLocations(updatedLocations);
     }
 
     return {
@@ -961,10 +987,10 @@ export const StorageService = {
     const trimmed = name.trim();
     const list = await this.getBuildings();
     const updatedBuildings = list.filter((b) => b.toLowerCase() !== trimmed.toLowerCase());
-     this.saveBuildings(updatedBuildings);
+    await this.saveBuildings(updatedBuildings);
 
     // Si hay ubicaciones asociadas, reasignarlas
-    const locations =  this.getLocations();
+    const locations = await this.getLocations();
     let affected = 0;
     const targetReassign = reassignTo && reassignTo.trim() ? reassignTo.trim() : (updatedBuildings[0] || 'Campus Principal');
 
@@ -977,7 +1003,7 @@ export const StorageService = {
     });
 
     if (affected > 0) {
-       this.saveLocations(updatedLocations);
+      await this.saveLocations(updatedLocations);
     }
 
     return {
@@ -990,26 +1016,17 @@ export const StorageService = {
 
   // Limpia todos los datos demo de la app para que el usuario pueda empezar desde cero con datos reales
   async clearAllData(options?: { preserveLocations?: boolean }): Promise<{ clearedEquipments: number; clearedLocations: number; clearedExecutions: number; }> {
-    try {
-      const res = await apiCall('/api/database/clear-data', 'POST', options);
-      return {
-        clearedEquipments: res.clearedEquipments || 0,
-        clearedLocations: res.clearedLocations || 0,
-        clearedExecutions: res.clearedExecutions || 0,
-      };
-    } catch (e: any) {
-      console.error(e);
-      return { clearedEquipments: 0, clearedLocations: 0, clearedExecutions: 0 };
-    }
+    const res = await apiCall('/api/database/clear-data', 'POST', options);
+    return {
+      clearedEquipments: res.clearedEquipments || 0,
+      clearedLocations: res.clearedLocations || 0,
+      clearedExecutions: res.clearedExecutions || 0,
+    };
   },
 
   // Restaura los datos de demostración si el usuario lo desea
   async resetToDefault(): Promise<void> {
-    try {
-      await apiCall('/api/database/reset-to-default', 'POST');
-    } catch (e: any) {
-      console.error(e);
-    }
+    await apiCall('/api/database/reset-to-default', 'POST');
   },
 
   INITIAL_BUILDINGS,
@@ -1033,7 +1050,7 @@ export const StorageService = {
   },
 
   async saveAllAnnualPlans(plans: Record<string, Record<string, boolean[]>>): Promise<void> {
-    try { await apiCall('/api/sync/annualPlans', 'POST', plans); } catch(e) { console.error(e); }
+    await apiCall('/api/sync/annualPlans', 'POST', plans);
   },
 
   async createFullBackup(): Promise<DatabaseBackup> {
@@ -1042,7 +1059,7 @@ export const StorageService = {
     const executions = await this.getExecutions();
     const locations = await this.getLocations();
     const buildings = await this.getBuildings();
-    const technicianSignature = localStorage.getItem('fcbv_technician_signature');
+    const technicianSignature = await this.getTechnicianSignature();
 
     const years = Object.keys(annualPlans)
       .map(Number)
@@ -1301,21 +1318,12 @@ export const StorageService = {
 
   // Obtiene la firma del técnico almacenada
   async getTechnicianSignature(): Promise<string | null> {
-    try {
-      const res = await fetch('/api/settings/fcbv_technician_signature', { headers: getAuthHeaders() });
-      const data = await res.json();
-      return data.success ? data.value : null;
-    } catch(e) { return null; }
+    const data = await apiCall('/api/settings/fcbv_technician_signature');
+    return data?.value ?? null;
   },
 
   // Guarda la firma del técnico
   async saveTechnicianSignature(signatureDataUrl: string): Promise<void> {
-    try {
-      await fetch('/api/settings', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ key: 'fcbv_technician_signature', value: signatureDataUrl })
-      });
-    } catch(e) { console.error(e); }
+    await apiCall('/api/settings', 'POST', { key: 'fcbv_technician_signature', value: signatureDataUrl });
   },
 };

@@ -1,6 +1,8 @@
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { GoogleGenAI, Type } from '@google/genai';
@@ -14,10 +16,28 @@ const app = express();
 // En AI Studio (Cloud Run) el puerto debe ser estrictamente 3000 para el proxy Nginx.
 // En servidores externos (Ubuntu / PM2) se respeta process.env.PORT (ej. 3050)
 const PORT = process.env.K_SERVICE ? 3000 : (Number(process.env.PORT) || 3000);
-const JWT_SECRET = process.env.JWT_SECRET || 'fcbv-secret-key-2026';
+const JWT_SECRET_ENV = process.env.JWT_SECRET;
 
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+if (!JWT_SECRET_ENV || JWT_SECRET_ENV.length < 32) {
+  console.error('[FATAL] JWT_SECRET no está configurado o es demasiado corto (mínimo 32 caracteres).');
+  console.error('Defina JWT_SECRET en el archivo .env antes de iniciar el servidor.');
+  process.exit(1);
+}
+
+const JWT_SECRET: string = JWT_SECRET_ENV;
+
+app.disable('x-powered-by');
+
+// Cabeceras de seguridad básicas (sin CSP para no romper el HMR de Vite en desarrollo)
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  next();
+});
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
 const META_FILE = path.join(UPLOADS_DIR, 'logo-meta.json');
@@ -27,16 +47,61 @@ if (!fs.existsSync(UPLOADS_DIR)) {
 }
 
 // Inicializar DB de Usuarios
+function generateTemporaryPassword(): string {
+  return crypto.randomBytes(12).toString('base64url');
+}
+
 function initUsersDb() {
-  const adminPassword = bcrypt.hashSync('admin123', 10);
-  const revisorPassword = bcrypt.hashSync('revisor123', 10);
-  
   const existingAdmin = db.select().from(users).where(eq(users.username, 'admin')).get();
-  if (!existingAdmin) {
-    db.insert(users).values([
-      { id: '1', username: 'admin', passwordHash: adminPassword, name: 'Administrador Principal', role: 'admin' },
-      { id: '2', username: 'revisor', passwordHash: revisorPassword, name: 'Revisor SGC', role: 'revisor' }
-    ]).run();
+  if (existingAdmin) return;
+
+  const adminPassword = process.env.INITIAL_ADMIN_PASSWORD || generateTemporaryPassword();
+  const revisorPassword = process.env.INITIAL_REVISOR_PASSWORD;
+
+  const seedUsers: any[] = [
+    {
+      id: '1',
+      username: 'admin',
+      passwordHash: bcrypt.hashSync(adminPassword, 12),
+      name: 'Administrador Principal',
+      role: 'admin'
+    }
+  ];
+
+  if (revisorPassword) {
+    seedUsers.push({
+      id: '2',
+      username: 'revisor',
+      passwordHash: bcrypt.hashSync(revisorPassword, 12),
+      name: 'Revisor SGC',
+      role: 'revisor'
+    });
+  }
+
+  db.insert(users).values(seedUsers).run();
+
+  if (!process.env.INITIAL_ADMIN_PASSWORD) {
+    console.warn('============================================================');
+    console.warn('[SEGURIDAD] Se creó el usuario administrador con contraseña temporal:');
+    console.warn('  Usuario: admin');
+    console.warn(`  Contraseña: ${adminPassword}`);
+    console.warn('  Cámbiela inmediatamente en Gestión de Usuarios.');
+    console.warn('============================================================');
+  }
+}
+
+// Avisa si quedaron credenciales históricas de demostración activas
+function warnAboutDefaultPasswords() {
+  const defaults = [
+    { username: 'admin', password: 'admin123' },
+    { username: 'revisor', password: 'revisor123' },
+  ];
+
+  for (const item of defaults) {
+    const user = db.select().from(users).where(eq(users.username, item.username)).get();
+    if (user && bcrypt.compareSync(item.password, user.passwordHash)) {
+      console.warn(`[SEGURIDAD] El usuario "${item.username}" sigue usando la contraseña por defecto. Cámbiela en Gestión de Usuarios.`);
+    }
   }
 }
 
@@ -84,6 +149,7 @@ function seedInitialDataIfEmpty() {
 }
 
 initUsersDb();
+warnAboutDefaultPasswords();
 seedInitialDataIfEmpty();
 
 const authenticateToken = (req: any, res: any, next: any) => {
@@ -93,7 +159,7 @@ const authenticateToken = (req: any, res: any, next: any) => {
   if (token == null) return res.status(401).json({ error: 'No token provided' });
   
   jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-    if (err) return res.status(403).json({ error: 'Invalid token' });
+    if (err) return res.status(401).json({ error: 'Sesión inválida o expirada' });
     req.user = user;
     next();
   });
@@ -106,8 +172,55 @@ const requireAdmin = (req: any, res: any, next: any) => {
   next();
 };
 
+// Limitador de peticiones en memoria (suficiente para 1-2 usuarios y un solo proceso PM2)
+type RateLimitOptions = { windowMs: number; max: number; message: string };
+
+function createRateLimiter({ windowMs, max, message }: RateLimitOptions) {
+  const hits = new Map<string, { count: number; resetAt: number }>();
+
+  return (req: any, res: any, next: any) => {
+    const now = Date.now();
+
+    // Limpieza oportunista para evitar crecimiento indefinido
+    if (hits.size > 1000) {
+      for (const [key, value] of hits) {
+        if (value.resetAt <= now) hits.delete(key);
+      }
+    }
+
+    const key = String(req.user?.id || req.ip || req.socket?.remoteAddress || 'unknown');
+    const current = hits.get(key);
+
+    if (!current || current.resetAt <= now) {
+      hits.set(key, { count: 1, resetAt: now + windowMs });
+      return next();
+    }
+
+    current.count += 1;
+    if (current.count > max) {
+      const retryAfter = Math.max(1, Math.ceil((current.resetAt - now) / 1000));
+      res.setHeader('Retry-After', String(retryAfter));
+      return res.status(429).json({ success: false, error: message });
+    }
+
+    return next();
+  };
+}
+
+const loginRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: 'Demasiados intentos de inicio de sesión. Intente de nuevo en 15 minutos.'
+});
+
+const aiRateLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 20,
+  message: 'Demasiadas solicitudes de reconocimiento. Espere un momento e intente de nuevo.'
+});
+
 // RUTAS DE AUTENTICACIÓN
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', loginRateLimiter, (req, res) => {
   const { username, password } = req.body;
   const user = db.select().from(users).where(eq(users.username, username)).get();
   
@@ -512,6 +625,30 @@ app.post('/api/database/migrate-to-mysql', authenticateToken, requireAdmin, asyn
 });
 
 // LOGO RUTAS
+const ALLOWED_LOGO_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
+const ALLOWED_LOGO_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp']);
+const MAX_LOGO_BYTES = 5 * 1024 * 1024; // 5 MB
+
+function detectImageMime(buffer: Buffer): string | null {
+  if (
+    buffer.length >= 8 &&
+    buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47
+  ) {
+    return 'image/png';
+  }
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return 'image/jpeg';
+  }
+  if (
+    buffer.length >= 12 &&
+    buffer.toString('ascii', 0, 4) === 'RIFF' &&
+    buffer.toString('ascii', 8, 12) === 'WEBP'
+  ) {
+    return 'image/webp';
+  }
+  return null;
+}
+
 app.get('/api/logo', (req, res) => {
   try {
     if (fs.existsSync(META_FILE)) {
@@ -556,13 +693,47 @@ app.post('/api/logo', authenticateToken, requireAdmin, (req: any, res: any) => {
   if (!imageBase64 || !filename) {
     return res.status(400).json({ success: false, error: 'Se requiere imageBase64 y filename' });
   }
+
+  const extension = path.extname(String(filename)).toLowerCase();
+  let declaredMime = String(mimeType || '').toLowerCase();
+  if (declaredMime === 'image/jpg') declaredMime = 'image/jpeg';
+
+  if (!ALLOWED_LOGO_EXTENSIONS.has(extension) || !ALLOWED_LOGO_MIME_TYPES.has(declaredMime)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Formato de logo no permitido. Use PNG, JPG o WEBP.'
+    });
+  }
+
   try {
-    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+    const base64Data = String(imageBase64).replace(/^data:image\/(png|jpeg|webp);base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
-    const safeFilename = 'logo_' + Date.now() + path.extname(filename);
+
+    if (buffer.length === 0 || buffer.length > MAX_LOGO_BYTES) {
+      return res.status(400).json({
+        success: false,
+        error: 'El logo supera el tamaño máximo permitido (5 MB).'
+      });
+    }
+
+    const detectedMime = detectImageMime(buffer);
+    if (!detectedMime || detectedMime !== declaredMime) {
+      return res.status(400).json({
+        success: false,
+        error: 'El contenido del archivo no corresponde a una imagen PNG, JPG o WEBP válida.'
+      });
+    }
+
+    const safeFilename = 'logo_' + Date.now() + extension;
     const imagePath = path.join(UPLOADS_DIR, safeFilename);
     fs.writeFileSync(imagePath, buffer);
-    const meta = { filename: safeFilename, originalName: filename, mimeType: mimeType || 'image/png', uploadedAt: new Date().toISOString(), uploadedBy: req.user?.username };
+    const meta = {
+      filename: safeFilename,
+      originalName: filename,
+      mimeType: declaredMime,
+      uploadedAt: new Date().toISOString(),
+      uploadedBy: req.user?.username
+    };
     fs.writeFileSync(META_FILE, JSON.stringify(meta, null, 2));
     res.json({ success: true, message: 'Logo actualizado correctamente', hasCustomLogo: true, logoUrl: '/api/logo/image', ...meta });
   } catch (error) {
@@ -601,7 +772,7 @@ function getGenAI(): GoogleGenAI | null {
   return aiClient;
 }
 
-app.post('/api/ai/scan-plate', async (req: any, res: any) => {
+app.post('/api/ai/scan-plate', authenticateToken, aiRateLimiter, async (req: any, res: any) => {
   const { imageBase64 } = req.body;
   if (!imageBase64) {
     return res.status(400).json({ success: false, error: 'Se requiere imageBase64' });
@@ -712,6 +883,18 @@ INSTRUCCIONES CLAVE DE EXTRACCIÓN:
       error: 'Respaldo a OCR local activado.',
     });
   }
+});
+
+// 404 específico para rutas de API no reconocidas
+app.use('/api', (req, res) => {
+  res.status(404).json({ success: false, error: 'Ruta de API no encontrada' });
+});
+
+// Manejador central de errores (responde JSON, nunca HTML)
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error('[API] Error no controlado:', err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ success: false, error: 'Error interno del servidor' });
 });
 
 async function startServer() {

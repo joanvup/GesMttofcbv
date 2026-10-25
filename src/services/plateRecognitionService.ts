@@ -885,10 +885,14 @@ export async function scanWithGeminiAi(
 ): Promise<PlateOcrResult | null> {
   try {
     const optimizedBase64 = await compressImageForAi(base64Image, 1200, 0.85);
+    const token = localStorage.getItem('fcbv_token');
 
     const res = await fetch('/api/ai/scan-plate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({ imageBase64: optimizedBase64 || base64Image }),
     });
     if (!res.ok) {
