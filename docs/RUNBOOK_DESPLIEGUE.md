@@ -104,13 +104,35 @@ npm ci
 Instala también las dependencias nuevas (`react-router-dom`, `@tanstack/react-query`). Puede tardar
 1–3 minutos. El proceso antiguo **permanece en memoria y sigue dando servicio**.
 
+**Verificar el módulo nativo de SQLite.** `better-sqlite3` obtiene su binario ejecutando su script
+de instalación, así que conviene confirmar que quedó bien:
+
+```bash
+node -e "const D=require('better-sqlite3'); const d=new D(':memory:'); d.exec('CREATE TABLE t(a)');
+console.log('better-sqlite3 OK:', require('better-sqlite3/package.json').version)"
+```
+
+Debe imprimir `better-sqlite3 OK: 12.11.1`.
+
+> Si falla con **`Segmentation fault`**, la versión instalada exige un Node más nuevo que el del
+> servidor (`better-sqlite3` 13.x declara `engines: node >=22`). Solución: fijar la serie 12, que sí
+> soporta Node 20, y reinstalar:
+>
+> ```bash
+> npm install --save-exact better-sqlite3@12.11.1
+> npm rebuild better-sqlite3 --ignore-scripts=false   # solo si los scripts estan deshabilitados
+> ```
+>
+> Si el error es **`Could not locate the bindings file`**, el script de instalación no se ejecutó:
+> revise que el `.npmrc` no esté deshabilitando los scripts (ver el aviso bajo este bloque).
+
 Control de calidad (usa SQLite **en memoria**, nunca toca los datos reales):
 
 ```bash
 npx vitest run 2>&1 | tail -5
 ```
 
-Espere `Test Files 14 passed` y `Tests 115 passed`.
+Espere `Test Files 14 passed` y `Tests 116 passed`.
 
 > **Si falla, deténgase aquí.** Con solo `npm ci` la aplicación anterior sigue intacta y puede
 > continuar prestando servicio sin cambios.
@@ -253,6 +275,14 @@ despliegue el limitador y la bitácora ven la IP real del cliente.
 > Efecto colateral esperado y deseado: el bloqueo por intentos fallidos deja de ser global. Si
 > alguien estaba bloqueado "por error" porque un compañero agotó los intentos, ahora podrá
 > intentarlo de nuevo.
+
+## Nota sobre el motor SQLite (mejora del despliegue)
+
+`better-sqlite3` obtiene su binario nativo ejecutando su script de instalación. El `.npmrc` del
+proyecto **no** deshabilita los scripts, así que `npm ci` lo instala correctamente. Si en el futuro
+se usara un Node distinto, fíjese en los `engines` del paquete: **13.x exige Node 22+** y en Node 20
+su binario precompilado segfaultea. La serie **12** es la que funciona en Node 20 y con el esquema
+Drizzle actual.
 
 ## Comandos útiles de PM2
 
